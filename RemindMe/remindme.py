@@ -65,6 +65,7 @@ class RemindMe(commands.Cog):
         due = (datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)).timestamp()
         self.reminders.append({
             "user_id": ctx.author.id,
+            "channel_id": ctx.channel.id,
             "message": message,
             "due": due
         })
@@ -80,12 +81,13 @@ class RemindMe(commands.Cog):
             self.reminders = [r for r in self.reminders if r["due"] > now]
 
             for r in due_reminders:
+                channel = self.bot.get_channel(r["channel_id"])
                 user = self.bot.get_user(r["user_id"])
-                if user:
+                if channel and user:
                     try:
-                        await user.send(f"⏰ Reminder: {r['message']}")
+                        await channel.send(f"{user.mention} ⏰ Reminder: {r['message']}")
                     except discord.Forbidden:
-                        pass  # Cannot DM user
+                        pass
             if due_reminders:
                 self.save_reminders()
             await asyncio.sleep(30)
