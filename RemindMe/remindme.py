@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 import datetime
-from redbot.core import commands, Config
+from redbot.core import commands
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
@@ -40,8 +40,22 @@ class RemindMe(commands.Cog):
                 current = ''
         return total_seconds
 
-    @commands.command()
-    async def remindme(self, ctx, time: str, *, message: str):
+    @commands.group(invoke_without_command=True)
+    async def remindme(self, ctx):
+        """Set reminders or view reminder commands."""
+        prefix = ctx.clean_prefix
+        embed = discord.Embed(
+            title="⏰ Reminder Help Menu",
+            description="Set a reminder or view reminder info.",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="Set a reminder", value=f"`{prefix}remindme set <time> <message>`", inline=False)
+        embed.add_field(name="Example", value=f"`{prefix}remindme set 10m Take out the trash`", inline=False)
+        embed.set_footer(text="Time format: d=day, h=hour, m=minute (e.g., 1d2h30m)")
+        await ctx.send(embed=embed)
+
+    @remindme.command()
+    async def set(self, ctx, time: str, *, message: str):
         """Set a reminder. Time format: 1d2h30m"""
         seconds = self.parse_time(time)
         if seconds <= 0:
