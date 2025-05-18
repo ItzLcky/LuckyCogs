@@ -1,0 +1,4 @@
+from .fortune import Fortune
+
+async def setup(bot):
+    await bot.add_cog(Fortune(bot))
