@@ -2,10 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Page</title>
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+  </style>
 </head>
 <body>
   <h1>Admin Control Panel</h1>
+
   <p><a href="/oauth/login">Login with Discord</a></p>
+
+  <hr />
+
+  <h2>Guilds</h2>
+  <button onclick="loadGuilds()">Load Guilds</button>
+  <ul id="guildList"></ul>
+
+  <script src="script.js"></script>
 </body>
 </html>
