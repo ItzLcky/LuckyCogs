@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RedBot WebUI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>RedBot WebUI</h1>
+
+  <section>
+    <h2>Ping</h2>
+    <button onclick="pingBot()">Ping Bot</button>
+    <pre id="pingResult"></pre>
+  </section>
+
+  <section>
+    <h2>Get User Info</h2>
+    <input id="userId" placeholder="Enter user ID" />
+    <button onclick="getUser()">Get User</button>
+    <pre id="userResult"></pre>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
