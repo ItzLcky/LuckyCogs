@@ -7,6 +7,7 @@ import aiohttp
 from aiohttp import web
 from redbot.core import commands, Config
 from redbot.core.bot import Red
+import discord
 
 log = logging.getLogger("red.WebUI")
 
@@ -96,6 +97,8 @@ class WebUI(commands.Cog):
         client_id = await self.config.client_id()
         redirect_uri = await self.config.redirect_uri()
 
+        log.info(f"[WebUI] OAuth Login: client_id={client_id}, redirect_uri={redirect_uri}")
+
         if not client_id or not redirect_uri:
             return web.Response(text="OAuth not configured", status=500)
 
@@ -159,3 +162,30 @@ class WebUI(commands.Cog):
             return web.Response(
                 text=f"Welcome, {user_json['username']}#{user_json['discriminator']} (Bot Admin)!"
             )
+
+    # === CONFIG DEBUG COMMAND ===
+
+    @commands.command()
+    @commands.is_owner()
+    async def webuiconfig(self, ctx):
+        """Show the current stored OAuth configuration (owner-only)."""
+        client_id = await self.config.client_id()
+        client_secret = await self.config.client_secret()
+        redirect_uri = await self.config.redirect_uri()
+
+        masked_secret = (
+            client_secret[:4] + "..." + client_secret[-4:]
+            if client_secret and len(client_secret) >= 8
+            else "Not Set"
+        )
+
+        embed = discord.Embed(
+            title="WebUI OAuth Config",
+            color=await ctx.embed_color(),
+            description="Here are the current stored values for Discord OAuth:",
+        )
+        embed.add_field(name="Client ID", value=client_id or "Not Set", inline=False)
+        embed.add_field(name="Client Secret", value=masked_secret, inline=False)
+        embed.add_field(name="Redirect URI", value=redirect_uri or "Not Set", inline=False)
+
+        await ctx.send(embed=embed)
