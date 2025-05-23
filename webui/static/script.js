@@ -23,3 +23,37 @@ async function loadGuilds() {
     list.appendChild(item);
   }
 }
+let userId = null;
+
+async function loadGuilds() {
+  if (!userId) {
+    userId = prompt("Enter your Discord User ID (from login response):");
+    if (!userId) {
+      alert("User ID required.");
+      return;
+    }
+  }
+
+  const res = await fetch("/api/guilds", {
+    headers: {
+      "X-User-ID": userId
+    }
+  });
+
+  const list = document.getElementById("guildList");
+  list.innerHTML = "";
+
+  if (!res.ok) {
+    const error = await res.json();
+    list.innerHTML = `<li>Error: ${error.error || "Unknown error"}</li>`;
+    return;
+  }
+
+  const data = await res.json();
+
+  for (const guild of data.guilds) {
+    const item = document.createElement("li");
+    item.textContent = `${guild.name} (ID: ${guild.id}, Members: ${guild.member_count})`;
+    list.appendChild(item);
+  }
+}
