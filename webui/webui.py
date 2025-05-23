@@ -40,6 +40,7 @@ class WebUI(commands.Cog):
         # API routes
         app.router.add_get("/api/ping", self.handle_ping)
         app.router.add_get("/api/user/{user_id}", self.handle_get_user)
+        app.router.add_get("/api/guilds", self.handle_get_guilds)
 
         # Admin + OAuth
         app.router.add_get("/admin", self.handle_admin_page)
@@ -82,6 +83,18 @@ class WebUI(commands.Cog):
         if user:
             return web.json_response({"id": user.id, "name": str(user)})
         return web.json_response({"error": "User not found"}, status=404)
+
+    async def handle_get_guilds(self, request):
+        guilds = self.bot.guilds
+        data = [
+            {
+                "id": str(g.id),
+                "name": g.name,
+                "member_count": g.member_count,
+            }
+            for g in guilds
+        ]
+        return web.json_response({"guilds": data})
 
     # === STATIC ADMIN PAGE ===
 
