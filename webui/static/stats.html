@@ -20,8 +20,27 @@
       box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
     }
 
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+
+    .user-info img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
     h1 {
-      margin-top: 0;
+      margin: 0;
       color: #333;
     }
 
@@ -47,7 +66,7 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      margin-top: 20px;
+      margin-left: 10px;
     }
 
     button:hover {
@@ -62,6 +81,14 @@
 </head>
 <body>
   <div class="container">
+    <div class="header">
+      <div class="user-info" id="userInfo">
+        <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" />
+        <span>Loading user...</span>
+      </div>
+      <button onclick="logout()">Logout</button>
+    </div>
+
     <h1>Bot Statistics</h1>
     <div id="statsContent">
       <p>Loading stats...</p>
@@ -70,6 +97,30 @@
   </div>
 
   <script>
+    async function loadUserInfo() {
+      const userId = localStorage.getItem("user_id");
+      const userInfoDiv = document.getElementById("userInfo");
+
+      if (!userId) {
+        userInfoDiv.innerHTML = `<span class="error">Not logged in</span>`;
+        return;
+      }
+
+      const res = await fetch(`/api/user/${userId}`);
+      if (!res.ok) {
+        userInfoDiv.innerHTML = `<span class="error">Failed to load user</span>`;
+        return;
+      }
+
+      const user = await res.json();
+      const avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar || 'a_0'}.png`;
+
+      userInfoDiv.innerHTML = `
+        <img src="${avatarURL}" alt="Avatar">
+        <span>${user.name}</span>
+      `;
+    }
+
     async function loadStats() {
       const userId = localStorage.getItem("user_id");
       const statsDiv = document.getElementById("statsContent");
@@ -98,8 +149,15 @@
       `;
     }
 
-    // Load on page load
-    window.onload = loadStats;
+    function logout() {
+      localStorage.removeItem("user_id");
+      window.location.href = "/admin";
+    }
+
+    window.onload = () => {
+      loadUserInfo();
+      loadStats();
+    };
   </script>
 </body>
 </html>
