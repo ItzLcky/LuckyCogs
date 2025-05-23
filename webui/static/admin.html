@@ -2,28 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Login</title>
   <style>
     body {
+      margin: 0;
+      padding: 0;
+      background-color: #2c2f33;
       font-family: Arial, sans-serif;
-      padding: 20px;
+      display: flex;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
     }
-    ul {
-      padding-left: 20px;
+
+    .login-container {
+      background-color: #23272a;
+      padding: 40px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+      color: #fff;
+      margin-bottom: 30px;
+    }
+
+    .discord-button {
+      background-color: #5865F2;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background-color 0.3s ease;
+    }
+
+    .discord-button:hover {
+      background-color: #4752c4;
     }
   </style>
 </head>
 <body>
-  <h1>Admin Control Panel</h1>
-
-  <p><a href="/oauth/login">Login with Discord</a></p>
-
-  <hr />
-
-  <h2>Guilds</h2>
-  <button onclick="loadGuilds()">Load Guilds</button>
-  <ul id="guildList"></ul>
-
-  <script src="script.js"></script>
+  <div class="login-container">
+    <h1>Admin Panel Login</h1>
+    <a href="/login/discord" class="discord-button">Login with Discord</a>
+  </div>
 </body>
 </html>
