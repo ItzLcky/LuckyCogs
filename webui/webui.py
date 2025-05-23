@@ -5,15 +5,11 @@ from urllib.parse import urlencode
 
 import aiohttp
 from aiohttp import web
-from redbot.core import commands
+from redbot.core import commands, Config
 from redbot.core.bot import Red
 
 log = logging.getLogger("red.WebUI")
 
-# Replace with your app credentials
-DISCORD_CLIENT_ID = "YOUR_CLIENT_ID"
-DISCORD_CLIENT_SECRET = "YOUR_CLIENT_SECRET"
-DISCORD_REDIRECT_URI = "http://localhost:8080/oauth/callback"
 DISCORD_API_BASE = "https://discord.com/api"
 
 
@@ -26,6 +22,14 @@ class WebUI(commands.Cog):
         self._site = None
         self._port = 8080
 
+        self.config = Config.get_conf(self, identifier=6543210)
+        default_global = {
+            "client_id": None,
+            "client_secret": None,
+            "redirect_uri": "http://localhost:8080/oauth/callback",
+        }
+        self.config.register_global(**default_global)
+
         bot.loop.create_task(self.start_server())
 
     async def start_server(self):
@@ -36,12 +40,12 @@ class WebUI(commands.Cog):
         app.router.add_get("/api/ping", self.handle_ping)
         app.router.add_get("/api/user/{user_id}", self.handle_get_user)
 
-        # OAuth & admin
+        # Admin + OAuth
         app.router.add_get("/admin", self.handle_admin_page)
         app.router.add_get("/oauth/login", self.handle_oauth_login)
         app.router.add_get("/oauth/callback", self.handle_oauth_callback)
 
-        # Static file serving
+        # Serve static files
         static_path = Path(__file__).parent / "static"
         if static_path.exists():
             app.router.add_static("/", static_path, show_index=True)
@@ -61,7 +65,8 @@ class WebUI(commands.Cog):
         if self._runner:
             await self._runner.cleanup()
 
-    # API Handlers
+    # === API ROUTES ===
+
     async def handle_ping(self, request):
         return web.json_response({"status": "ok", "message": "pong"})
 
@@ -77,18 +82,26 @@ class WebUI(commands.Cog):
             return web.json_response({"id": user.id, "name": str(user)})
         return web.json_response({"error": "User not found"}, status=404)
 
-    # Admin UI
+    # === STATIC ADMIN PAGE ===
+
     async def handle_admin_page(self, request):
         html_path = Path(__file__).parent / "static" / "admin.html"
         if html_path.exists():
             return web.FileResponse(html_path)
         return web.Response(text="Admin page not found", status=404)
 
-    # OAuth2 Flow
+    # === OAUTH2 LOGIN ===
+
     async def handle_oauth_login(self, request):
+        client_id = await self.config.client_id()
+        redirect_uri = await self.config.redirect_uri()
+
+        if not client_id or not redirect_uri:
+            return web.Response(text="OAuth not configured", status=500)
+
         params = {
-            "client_id": DISCORD_CLIENT_ID,
-            "redirect_uri": DISCORD_REDIRECT_URI,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": "identify",
         }
@@ -100,13 +113,20 @@ class WebUI(commands.Cog):
         if not code:
             return web.Response(text="Missing code", status=400)
 
+        client_id = await self.config.client_id()
+        client_secret = await self.config.client_secret()
+        redirect_uri = await self.config.redirect_uri()
+
+        if not client_id or not client_secret:
+            return web.Response(text="OAuth not configured", status=500)
+
         async with aiohttp.ClientSession() as session:
             token_data = {
-                "client_id": DISCORD_CLIENT_ID,
-                "client_secret": DISCORD_CLIENT_SECRET,
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": DISCORD_REDIRECT_URI,
+                "redirect_uri": redirect_uri,
                 "scope": "identify",
             }
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
