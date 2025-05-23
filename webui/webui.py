@@ -163,11 +163,27 @@ class WebUI(commands.Cog):
                 text=f"Welcome, {user_json['username']}#{user_json['discriminator']} (Bot Admin)!"
             )
 
-    # === CONFIG DEBUG COMMAND ===
+    # === REDBOT CONFIG COMMANDS ===
 
-    @commands.command()
+    @commands.group()
     @commands.is_owner()
     async def webuiconfig(self, ctx):
+        """Manage WebUI OAuth settings."""
+        pass
+
+    @webuiconfig.command(name="set")
+    async def webuiconfig_set(self, ctx, field: str, *, value: str):
+        """Set a config field. Usage: [p]webuiconfig set client_id <value>"""
+        valid_fields = ["client_id", "client_secret", "redirect_uri"]
+        if field not in valid_fields:
+            await ctx.send(f"Invalid field. Must be one of: {', '.join(valid_fields)}")
+            return
+
+        await getattr(self.config, field).set(value)
+        await ctx.send(f"Set `{field}` to `{value}`.")
+
+    @webuiconfig.command(name="show")
+    async def webuiconfig_show(self, ctx):
         """Show the current stored OAuth configuration (owner-only)."""
         client_id = await self.config.client_id()
         client_secret = await self.config.client_secret()
@@ -182,7 +198,7 @@ class WebUI(commands.Cog):
         embed = discord.Embed(
             title="WebUI OAuth Config",
             color=await ctx.embed_color(),
-            description="Here are the current stored values for Discord OAuth:",
+            description="Stored Discord OAuth2 credentials:",
         )
         embed.add_field(name="Client ID", value=client_id or "Not Set", inline=False)
         embed.add_field(name="Client Secret", value=masked_secret, inline=False)
