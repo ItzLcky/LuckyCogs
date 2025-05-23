@@ -1,12 +1,21 @@
 import asyncio
-from redbot.core import commands
-from redbot.core.bot import Red
-import aiohttp
-from aiohttp import web
 import logging
 from pathlib import Path
+from urllib.parse import urlencode
+
+import aiohttp
+from aiohttp import web
+from redbot.core import commands
+from redbot.core.bot import Red
 
 log = logging.getLogger("red.WebUI")
+
+# Replace with your app credentials
+DISCORD_CLIENT_ID = "YOUR_CLIENT_ID"
+DISCORD_CLIENT_SECRET = "YOUR_CLIENT_SECRET"
+DISCORD_REDIRECT_URI = "http://localhost:8080/oauth/callback"
+DISCORD_API_BASE = "https://discord.com/api"
+
 
 class WebUI(commands.Cog):
     """Web UI backend server for the bot."""
@@ -15,17 +24,22 @@ class WebUI(commands.Cog):
         self.bot = bot
         self._runner = None
         self._site = None
-        self._port = 8080  # Change this if needed
+        self._port = 8080
 
         bot.loop.create_task(self.start_server())
 
     async def start_server(self):
         await self.bot.wait_until_ready()
         app = web.Application()
-        
+
         # API routes
         app.router.add_get("/api/ping", self.handle_ping)
         app.router.add_get("/api/user/{user_id}", self.handle_get_user)
+
+        # OAuth & admin
+        app.router.add_get("/admin", self.handle_admin_page)
+        app.router.add_get("/oauth/login", self.handle_oauth_login)
+        app.router.add_get("/oauth/callback", self.handle_oauth_callback)
 
         # Static file serving
         static_path = Path(__file__).parent / "static"
@@ -47,11 +61,12 @@ class WebUI(commands.Cog):
         if self._runner:
             await self._runner.cleanup()
 
+    # API Handlers
     async def handle_ping(self, request):
         return web.json_response({"status": "ok", "message": "pong"})
 
     async def handle_get_user(self, request):
-        user_id_str = request.match_info.get('user_id')
+        user_id_str = request.match_info.get("user_id")
         try:
             user_id = int(user_id_str)
         except ValueError:
@@ -61,3 +76,66 @@ class WebUI(commands.Cog):
         if user:
             return web.json_response({"id": user.id, "name": str(user)})
         return web.json_response({"error": "User not found"}, status=404)
+
+    # Admin UI
+    async def handle_admin_page(self, request):
+        html_path = Path(__file__).parent / "static" / "admin.html"
+        if html_path.exists():
+            return web.FileResponse(html_path)
+        return web.Response(text="Admin page not found", status=404)
+
+    # OAuth2 Flow
+    async def handle_oauth_login(self, request):
+        params = {
+            "client_id": DISCORD_CLIENT_ID,
+            "redirect_uri": DISCORD_REDIRECT_URI,
+            "response_type": "code",
+            "scope": "identify",
+        }
+        url = f"{DISCORD_API_BASE}/oauth2/authorize?" + urlencode(params)
+        return web.HTTPFound(url)
+
+    async def handle_oauth_callback(self, request):
+        code = request.query.get("code")
+        if not code:
+            return web.Response(text="Missing code", status=400)
+
+        async with aiohttp.ClientSession() as session:
+            token_data = {
+                "client_id": DISCORD_CLIENT_ID,
+                "client_secret": DISCORD_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": DISCORD_REDIRECT_URI,
+                "scope": "identify",
+            }
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+            async with session.post(
+                f"{DISCORD_API_BASE}/oauth2/token", data=token_data, headers=headers
+            ) as token_resp:
+                token_json = await token_resp.json()
+                access_token = token_json.get("access_token")
+
+            if not access_token:
+                return web.Response(text="Failed to get access token", status=400)
+
+            user_headers = {"Authorization": f"Bearer {access_token}"}
+            async with session.get(
+                f"{DISCORD_API_BASE}/users/@me", headers=user_headers
+            ) as user_resp:
+                user_json = await user_resp.json()
+
+            user_id = int(user_json["id"])
+            user = self.bot.get_user(user_id)
+            is_owner = await self.bot.is_owner(user)
+
+            if not is_owner:
+                return web.Response(
+                    text=f"Access denied. You are not a bot owner. User ID: {user_id}",
+                    status=403,
+                )
+
+            return web.Response(
+                text=f"Welcome, {user_json['username']}#{user_json['discriminator']} (Bot Admin)!"
+            )
