@@ -10,3 +10,16 @@ async function getUser() {
   const data = await res.json();
   document.getElementById("userResult").textContent = JSON.stringify(data, null, 2);
 }
+
+async function loadGuilds() {
+  const res = await fetch("/api/guilds");
+  const data = await res.json();
+  const list = document.getElementById("guildList");
+  list.innerHTML = "";
+
+  for (const guild of data.guilds) {
+    const item = document.createElement("li");
+    item.textContent = `${guild.name} (ID: ${guild.id}, Members: ${guild.member_count})`;
+    list.appendChild(item);
+  }
+}
