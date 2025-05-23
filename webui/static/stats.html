@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bot Stats</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Bot Statistics</h1>
+  <button onclick="loadStats()">Load Stats</button>
+  <pre id="stats"></pre>
+
+  <script>
+    async function loadStats() {
+      const userId = localStorage.getItem("user_id");
+      const res = await fetch("/api/stats", {
+        headers: { "X-User-ID": userId }
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        document.getElementById("stats").textContent = `Error: ${error.error}`;
+        return;
+      }
+
+      const data = await res.json();
+      document.getElementById("stats").textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>
