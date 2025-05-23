@@ -43,6 +43,7 @@ class WebUI(commands.Cog):
         app.router.add_get("/api/ping", self.handle_ping)
         app.router.add_get("/api/user/{user_id}", self.handle_get_user)
         app.router.add_get("/api/guilds", self.handle_get_guilds)
+        app.router.add_get("/api/stats", self.handle_stats)
 
         # Admin + OAuth
         app.router.add_get("/admin", self.handle_admin_page)
@@ -101,6 +102,20 @@ class WebUI(commands.Cog):
             for g in guilds
         ]
         return web.json_response({"guilds": data})
+
+    async def handle_stats(self, request):
+        auth_header = request.headers.get("X-User-ID")
+        if not auth_header or int(auth_header) not in self._authed_users:
+            return web.json_response({"error": "Unauthorized"}, status=403)
+
+        total_users = sum(g.member_count for g in self.bot.guilds)
+        total_guilds = len(self.bot.guilds)
+
+        return web.json_response({
+            "total_users": total_users,
+            "total_guilds": total_guilds,
+            "cogs_loaded": list(self.bot.cogs.keys()),
+        })
 
     # === STATIC ADMIN PAGE ===
 
@@ -180,9 +195,18 @@ class WebUI(commands.Cog):
 
             self._authed_users.add(user_id)
 
-            return web.Response(
-                text=f"Welcome, {user_json['username']}#{user_json['discriminator']} (Bot Admin)!"
-            )
+            html = f"""
+<html>
+  <body>
+    <script>
+      localStorage.setItem('user_id', '{user_id}');
+      window.location.href = '/stats.html';
+    </script>
+    Redirecting to stats...
+  </body>
+</html>
+"""
+            return web.Response(text=html, content_type="text/html")
 
     # === REDBOT CONFIG COMMANDS ===
 
