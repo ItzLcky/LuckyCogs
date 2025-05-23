@@ -31,6 +31,8 @@ class WebUI(commands.Cog):
         }
         self.config.register_global(**default_global)
 
+        self._authed_users = set()  # Store authed user IDs temporarily
+
         bot.loop.create_task(self.start_server())
 
     async def start_server(self):
@@ -85,6 +87,10 @@ class WebUI(commands.Cog):
         return web.json_response({"error": "User not found"}, status=404)
 
     async def handle_get_guilds(self, request):
+        auth_header = request.headers.get("X-User-ID")
+        if not auth_header or int(auth_header) not in self._authed_users:
+            return web.json_response({"error": "Unauthorized"}, status=403)
+
         guilds = self.bot.guilds
         data = [
             {
@@ -171,6 +177,8 @@ class WebUI(commands.Cog):
                     text=f"Access denied. You are not a bot owner. User ID: {user_id}",
                     status=403,
                 )
+
+            self._authed_users.add(user_id)
 
             return web.Response(
                 text=f"Welcome, {user_json['username']}#{user_json['discriminator']} (Bot Admin)!"
