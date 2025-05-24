@@ -1,3 +1,5 @@
+# webui.py (corrected)
+
 import asyncio
 import logging
 from pathlib import Path
@@ -19,23 +21,21 @@ class WebUI(commands.Cog):
         self.bot = bot
         self._runner = None
         self._site = None
-        self._port = 5050
-
         self.config = Config.get_conf(self, identifier=6543210)
         default_global = {
             "client_id": None,
             "client_secret": None,
             "redirect_uri": "http://localhost:8080/oauth/callback",
+            "port": 5050,
         }
         self.config.register_global(**default_global)
-
         self._authed_users = set()
         self._message_counts = {}
-
         bot.loop.create_task(self.start_server())
 
     async def start_server(self):
         await self.bot.wait_until_ready()
+        self._port = await self.config.port()
         app = web.Application()
 
         app.router.add_get("/api/ping", self.handle_ping)
@@ -58,7 +58,11 @@ class WebUI(commands.Cog):
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         self._site = web.TCPSite(self._runner, "0.0.0.0", self._port)
-        await self._site.start()
+        try:
+            await self._site.start()
+            log.info(f"WebUI is running on port {self._port}")
+        except Exception as e:
+            log.exception("Failed to start WebUI server")
 
     async def cog_unload(self):
         if self._site:
@@ -91,11 +95,11 @@ class WebUI(commands.Cog):
         if user_id not in self._authed_users:
             return web.json_response({"error": "Unauthorized"}, status=403)
         return web.json_response({
-            "guilds": [{
+            "guilds": [ {
                 "id": str(g.id),
                 "name": g.name,
                 "member_count": g.member_count
-            } for g in self.bot.guilds]
+            } for g in self.bot.guilds ]
         })
 
     async def handle_guild_details(self, request):
@@ -137,27 +141,26 @@ class WebUI(commands.Cog):
             return web.json_response({"error": "CustomCommands cog not loaded"}, status=500)
 
         commands = await cog.config.guild_from_id(guild_id).commands()
-        return web.json_response(commands)
+        return web.json_response({k.lower(): v for k, v in commands.items()})
 
-async def handle_edit_cc(self, request):
-    user_id = int(request.headers.get("X-User-ID", 0))
-    if user_id not in self._authed_users:
-        return web.json_response({"error": "Unauthorized"}, status=403)
+    async def handle_edit_cc(self, request):
+        user_id = int(request.headers.get("X-User-ID", 0))
+        if user_id not in self._authed_users:
+            return web.json_response({"error": "Unauthorized"}, status=403)
 
-    guild_id = int(request.match_info["guild_id"])
-    data = await request.json()
-    name = data.get("name", "").strip().lower()
-    response = data.get("response", "").strip()
+        guild_id = int(request.match_info["guild_id"])
+        data = await request.json()
+        name = data.get("name", "").strip().lower()
+        response = data.get("response", "").strip()
 
-    if not name or not response:
-        return web.json_response({"error": "Missing fields"}, status=400)
+        if not name or not response:
+            return web.json_response({"error": "Missing fields"}, status=400)
 
-    cog: CustomCommands = self.bot.get_cog("CustomCommands")
-    cmds = await cog.config.guild_from_id(guild_id).commands()
-    cmds[name] = {"response": response}
-    await cog.config.guild_from_id(guild_id).commands.set(cmds)
-    return web.json_response({"status": "success", "updated": name})
-
+        cog: CustomCommands = self.bot.get_cog("CustomCommands")
+        cmds = await cog.config.guild_from_id(guild_id).commands()
+        cmds[name] = {"response": response}
+        await cog.config.guild_from_id(guild_id).commands.set(cmds)
+        return web.json_response({"status": "success", "updated": name})
 
     async def handle_delete_cc(self, request):
         user_id = int(request.headers.get("X-User-ID", 0))
@@ -165,7 +168,7 @@ async def handle_edit_cc(self, request):
             return web.json_response({"error": "Unauthorized"}, status=403)
 
         guild_id = int(request.match_info["guild_id"])
-        cmd_name = request.match_info["cmd_name"]
+        cmd_name = request.match_info["cmd_name"].lower()
         cog: CustomCommands = self.bot.get_cog("CustomCommands")
         cmds = await cog.config.guild_from_id(guild_id).commands()
         if cmd_name in cmds:
@@ -231,3 +234,41 @@ async def handle_edit_cc(self, request):
               window.location.href = '/stats.html';
             </script>Logging in...</body></html>"""
             return web.Response(text=html, content_type="text/html")
+
+    @commands.group()
+    @commands.is_owner()
+    async def webuiconfig(self, ctx):
+        """Manage WebUI OAuth and port settings."""
+        pass
+
+    @webuiconfig.command(name="set")
+    async def webuiconfig_set(self, ctx, field: str, *, value: str):
+        valid_fields = ["client_id", "client_secret", "redirect_uri", "port"]
+        if field not in valid_fields:
+            await ctx.send(f"Invalid field. Choose from: {', '.join(valid_fields)}")
+            return
+        if field == "port":
+            try:
+                value = int(value)
+            except ValueError:
+                await ctx.send("Port must be a number.")
+                return
+        await getattr(self.config, field).set(value)
+        await ctx.send(f"Set `{field}` to `{value}`. Please restart the bot for changes to apply.")
+
+    @webuiconfig.command(name="show")
+    async def webuiconfig_show(self, ctx):
+        client_id = await self.config.client_id()
+        client_secret = await self.config.client_secret()
+        redirect_uri = await self.config.redirect_uri()
+        port = await self.config.port()
+        masked = (
+            client_secret[:4] + "..." + client_secret[-4:]
+            if client_secret and len(client_secret) > 8 else "Not Set"
+        )
+        embed = discord.Embed(title="WebUI Config", color=await ctx.embed_color())
+        embed.add_field(name="Client ID", value=client_id or "Not Set", inline=False)
+        embed.add_field(name="Client Secret", value=masked, inline=False)
+        embed.add_field(name="Redirect URI", value=redirect_uri or "Not Set", inline=False)
+        embed.add_field(name="Port", value=str(port), inline=False)
+        await ctx.send(embed=embed)
