@@ -6,8 +6,8 @@
   <title>Custom Commands</title>
   <!-- Material 3 Web Components -->
   <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" />
-  <!-- Material Icons -->
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <!-- Material Icons (Outlined) -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
   <style>
     :root {
       --mdc-theme-primary: #6200ee;
@@ -35,6 +35,7 @@
     #statusMsg {
       min-height: 1.5em;
       margin-top: 12px;
+      color: var(--mdc-theme-primary);
     }
   </style>
 </head>
@@ -52,10 +53,15 @@
         <option value="">-- Select a Guild --</option>
       </select>
       <span class="mdc-floating-label">Choose a Guild</span>
-      <div class="mdc-line-ripple"></div>
+      <div class="mdc-notched-outline">
+        <div class="mdc-notched-outline__leading"></div>
+        <div class="mdc-notched-outline__notch"></div>
+        <div class="mdc-notched-outline__trailing"></div>
+      </div>
     </div>
-
     <p id="commandCount" class="mdc-typography--subtitle1"></p>
+
+    <!-- Commands list -->
     <div id="ccList"></div>
     <div id="paginationControls" class="mdc-button-row"></div>
     <p id="statusMsg" class="mdc-typography--body2"></p>
@@ -98,72 +104,87 @@
   </div>
 
   <!-- Material Components JS -->
-  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js" crossorigin="anonymous"></script>
   <script>
-    // Initialize MDC
-    mdc.autoInit();
-    const guildSelect = new mdc.select.MDCSelect(document.getElementById('guildSelectWrapper'));
-    const dialog = new mdc.dialog.MDCDialog(document.getElementById('editDialog'));
-
-    const userId = localStorage.getItem('user_id');
+    let guildSelect, dialog;
+    let userId = '';
     let commandsData = [];
     let currentPage = 0;
 
-    // Load header fragment
-    fetch('header.html')
-      .then(res => res.text())
-      .then(html => {
-        document.getElementById('header-container').innerHTML = html;
-        mdc.autoInit();
-        return fetch('/api/user/' + userId);
-      })
-      .then(res => res.json())
-      .then(user => {
-        document.getElementById('username').textContent = user.name;
-        if (user.avatar) document.getElementById('avatar').src = user.avatar;
-      })
-      .catch(err => console.error('Header load error:', err));
+    document.addEventListener('DOMContentLoaded', () => {
+      userId = localStorage.getItem('user_id') || '';
+      initPage();
+    });
 
-    // Populate guilds
-    function loadGuilds() {
-      fetch('/api/guilds', { headers: { 'X-User-ID': userId } })
-        .then(res => res.json())
-        .then(data => {
-          const native = document.getElementById('guildSelect');
-          data.guilds.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g.id;
-            opt.textContent = `${g.name} (${g.member_count})`;
-            native.appendChild(opt);
-          });
-          guildSelect.layout();
-        });
+    async function initPage() {
+      try {
+        await loadHeader();
+      } catch (err) {
+        console.error('Header load error:', err);
+      }
+      mdc.autoInit();
+      guildSelect = new mdc.select.MDCSelect(document.getElementById('guildSelectWrapper'));
+      dialog = new mdc.dialog.MDCDialog(document.getElementById('editDialog'));
+      setupListeners();
+      await loadGuilds();
     }
-    guildSelect.listen('MDCSelect:change', loadCommands);
 
-    // Load and render commands
-    function loadCommands() {
+    async function loadHeader() {
+      const res = await fetch('header.html');
+      if (!res.ok) throw new Error(`Failed to fetch header: ${res.status}`);
+      const html = await res.text();
+      document.getElementById('header-container').innerHTML = html;
+    }
+
+    function setupListeners() {
+      guildSelect.listen('MDCSelect:change', loadCommands);
+      document.querySelector('[data-mdc-dialog-action="close"]').addEventListener('click', () => dialog.close());
+      document.getElementById('saveBtn').addEventListener('click', saveCommand);
+    }
+
+    async function loadGuilds() {
+      const status = document.getElementById('statusMsg');
+      try {
+        const res = await fetch('/api/guilds', { headers: { 'X-User-ID': userId } });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        const native = document.getElementById('guildSelect');
+        data.guilds.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.id;
+          opt.textContent = `${g.name} (${g.member_count})`;
+          native.appendChild(opt);
+        });
+        guildSelect.layout();
+      } catch (err) {
+        console.error('Error loading guilds:', err);
+        status.textContent = 'Failed to load guilds.';
+      }
+    }
+
+    async function loadCommands() {
       const guildId = document.getElementById('guildSelect').value;
-      const list = document.getElementById('ccList');
-      const count = document.getElementById('commandCount');
+      const status = document.getElementById('statusMsg');
+      document.getElementById('ccList').innerHTML = '';
       document.getElementById('paginationControls').innerHTML = '';
-      document.getElementById('statusMsg').textContent = '';
-      list.innerHTML = '';
-      count.textContent = '';
+      document.getElementById('commandCount').textContent = '';
+      status.textContent = '';
+      commandsData = [];
       currentPage = 0;
 
       if (!guildId) return;
 
-      fetch(`/api/guild/${guildId}/ccs`, { headers: { 'X-User-ID': userId } })
-        .then(res => res.json())
-        .then(data => {
-          commandsData = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
-          count.textContent = `Total Commands: ${commandsData.length}`;
-          renderPage();
-        })
-        .catch(() => {
-          document.getElementById('statusMsg').textContent = 'Failed to load commands.';
-        });
+      try {
+        const res = await fetch(`/api/guild/${guildId}/ccs`, { headers: { 'X-User-ID': userId } });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        commandsData = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
+        document.getElementById('commandCount').textContent = `Total Commands: ${commandsData.length}`;
+        renderPage();
+      } catch (err) {
+        console.error('Error loading commands:', err);
+        status.textContent = 'Failed to load commands.';
+      }
     }
 
     function renderPage() {
@@ -179,7 +200,7 @@
         if (!cmd || !cmd.response) return;
         const card = document.createElement('div');
         card.className = 'mdc-card cc-entry';
-        card.style = 'padding:12px; display:flex; justify-content:space-between; align-items:center;';
+        card.style.cssText = 'padding:12px; display:flex; justify-content:space-between; align-items:center;';
 
         const title = document.createElement('div');
         title.className = 'mdc-typography--body1';
@@ -189,13 +210,13 @@
         actions.className = 'mdc-button-row';
 
         const editBtn = document.createElement('button');
-        editBtn.className = 'mdc-icon-button material-icons';
+        editBtn.className = 'material-icons-outlined mdc-icon-button';
         editBtn.textContent = 'edit';
         editBtn.title = 'Edit';
         editBtn.onclick = () => editCommand(name, cmd.response);
 
         const delBtn = document.createElement('button');
-        delBtn.className = 'mdc-icon-button material-icons';
+        delBtn.className = 'material-icons-outlined mdc-icon-button';
         delBtn.textContent = 'delete';
         delBtn.title = 'Delete';
         delBtn.onclick = () => deleteCommand(name);
@@ -227,10 +248,7 @@
       dialog.open();
     }
 
-    document.querySelector('[data-mdc-dialog-action="close"]').addEventListener('click', () => dialog.close());
-    document.getElementById('saveBtn').addEventListener('click', saveCommand);
-
-    function saveCommand() {
+    async function saveCommand() {
       const guildId = document.getElementById('guildSelect').value;
       const name = document.getElementById('ccName').value.trim().toLowerCase();
       const response = document.getElementById('ccResponse').value.trim();
@@ -241,33 +259,38 @@
         return;
       }
 
-      fetch(`/api/guild/${guildId}/ccs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
-        body: JSON.stringify({ name, response })
-      })
-        .then(res => {
-          if (!res.ok) throw new Error();
-          status.textContent = 'Command saved successfully.';
-          dialog.close();
-          loadCommands();
-        })
-        .catch(() => { status.textContent = 'Failed to save command.'; });
+      try {
+        const res = await fetch(`/api/guild/${guildId}/ccs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+          body: JSON.stringify({ name, response })
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        status.textContent = 'Command saved successfully.';
+        dialog.close();
+        await loadCommands();
+      } catch (err) {
+        console.error('Error saving command:', err);
+        status.textContent = 'Failed to save command.';
+      }
     }
 
-    function deleteCommand(name) {
+    async function deleteCommand(name) {
       const guildId = document.getElementById('guildSelect').value;
       const status = document.getElementById('statusMsg');
-      fetch(`/api/guild/${guildId}/ccs/${name}`, { method: 'DELETE', headers: { 'X-User-ID': userId } })
-        .then(res => {
-          if (!res.ok) throw new Error();
-          status.textContent = 'Command deleted.';
-          loadCommands();
-        })
-        .catch(() => { status.textContent = 'Failed to delete command.'; });
+      try {
+        const res = await fetch(`/api/guild/${guildId}/ccs/${name}`, {
+          method: 'DELETE',
+          headers: { 'X-User-ID': userId }
+        });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        status.textContent = 'Command deleted.';
+        await loadCommands();
+      } catch (err) {
+        console.error('Error deleting command:', err);
+        status.textContent = 'Failed to delete command.';
+      }
     }
-
-    window.onload = loadGuilds;
   </script>
 </body>
 </html>
