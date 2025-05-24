@@ -38,8 +38,31 @@
       background: #c03e3e;
     }
 
+    .cc-response {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
+    }
+
     .success { color: #57f287; }
     .error { color: #f04747; }
+
+    .pagination {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .pagination button {
+      background: #5865f2;
+      margin: 5px;
+      padding: 8px 16px;
+    }
+
+    .pagination button:hover {
+      background: #4752c4;
+    }
   </style>
 </head>
 <body>
@@ -70,6 +93,8 @@
 
   <script>
     const userId = localStorage.getItem("user_id");
+    let currentPage = 0;
+    let commandsData = [];
 
     fetch("/header.html")
       .then(res => res.text())
@@ -100,8 +125,10 @@
     async function loadCommands() {
       const guildId = document.getElementById("guildSelect").value;
       const list = document.getElementById("ccList");
+      const count = document.getElementById("commandCount");
       list.innerHTML = "";
-      document.getElementById("commandCount").textContent = "";
+      count.textContent = "";
+      currentPage = 0;
 
       if (!guildId) return;
 
@@ -115,21 +142,50 @@
       }
 
       const data = await res.json();
-      document.getElementById("commandCount").textContent = `Total Commands: ${Object.keys(data).length}`;
+      commandsData = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
+      count.textContent = `Total Commands: ${commandsData.length}`;
 
-      Object.entries(data)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .forEach(([name, cmd]) => {
-          const div = document.createElement("div");
-          div.className = "cc-entry";
-          div.innerHTML = `
-            <strong>${name}</strong><br />
-            <div style="white-space: pre-wrap;">${cmd.response}</div>
-            <button onclick="editCommand('${name}', \`${cmd.response.replace(/`/g, '\\`')}\`)">Edit</button>
-            <button onclick="deleteCommand('${name}')">Delete</button>
-          `;
-          list.appendChild(div);
-        });
+      renderPage();
+    }
+
+    function renderPage() {
+      const list = document.getElementById("ccList");
+      list.innerHTML = "";
+
+      const start = currentPage * 30;
+      const end = start + 30;
+      const pageItems = commandsData.slice(start, end);
+
+      for (const [name, cmd] of pageItems) {
+        const div = document.createElement("div");
+        div.className = "cc-entry";
+        div.innerHTML = `
+          <strong>${name}</strong><br />
+          <div class="cc-response">${cmd.response}</div>
+          <button onclick="editCommand('${name}', \`${cmd.response.replace(/`/g, '\\`')}\`)">Edit</button>
+          <button onclick="deleteCommand('${name}')">Delete</button>
+        `;
+        list.appendChild(div);
+      }
+
+      const nav = document.createElement("div");
+      nav.className = "pagination";
+
+      if (currentPage > 0) {
+        const prev = document.createElement("button");
+        prev.textContent = "Previous";
+        prev.onclick = () => { currentPage--; renderPage(); };
+        nav.appendChild(prev);
+      }
+
+      if ((currentPage + 1) * 30 < commandsData.length) {
+        const next = document.createElement("button");
+        next.textContent = "Next";
+        next.onclick = () => { currentPage++; renderPage(); };
+        nav.appendChild(next);
+      }
+
+      list.appendChild(nav);
     }
 
     function editCommand(name, response) {
