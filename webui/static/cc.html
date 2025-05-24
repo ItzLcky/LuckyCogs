@@ -3,23 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <title>Manage Custom Commands</title>
+  <link rel="stylesheet" href="/style.css">
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #2f3136;
-      color: white;
-      margin: 0;
-      padding: 40px;
-    }
-
     .container {
       max-width: 800px;
-      margin: auto;
+      margin: 40px auto;
       background: #36393f;
       padding: 30px;
       border-radius: 8px;
     }
-
     select, input, textarea, button {
       width: 100%;
       padding: 10px;
@@ -28,49 +20,35 @@
       border: none;
       font-size: 16px;
     }
-
     button {
       background-color: #5865f2;
       color: white;
       font-weight: bold;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #4752c4;
     }
-
     .cc-entry {
       background: #202225;
       padding: 10px;
       border-radius: 5px;
       margin-bottom: 10px;
     }
-
     .cc-entry button {
       background: #f04747;
       margin-top: 5px;
     }
-
     .cc-entry button:hover {
       background: #c03e3e;
     }
-
-    .label {
-      font-weight: bold;
-      margin-top: 20px;
-    }
-
-    .error {
-      color: #f04747;
-    }
-
-    .success {
-      color: #57f287;
-    }
+    .error { color: #f04747; }
+    .success { color: #57f287; }
   </style>
 </head>
 <body>
+  <div id="header"></div>
+
   <div class="container">
     <h1>Manage Custom Commands</h1>
 
@@ -95,7 +73,7 @@
   </div>
 
   <script>
-        fetch('/header.html')
+    fetch('/header.html')
       .then(res => res.text())
       .then(html => {
         document.getElementById("header").innerHTML = html;
@@ -105,17 +83,15 @@
           if (user.avatar) document.getElementById("avatar").src = user.avatar;
         });
       });
-    
+
     const userId = localStorage.getItem("user_id");
 
     async function loadGuilds() {
       const res = await fetch("/api/guilds", {
         headers: { "X-User-ID": userId }
       });
-
       const data = await res.json();
       const select = document.getElementById("guildSelect");
-
       data.guilds.forEach(g => {
         const option = document.createElement("option");
         option.value = g.id;
