@@ -1,115 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Meatload Dashboard</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: #2f3136;
-      color: white;
-      margin: 0;
-      padding: 0;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #23272a;
-      padding: 20px;
-    }
-
-    .header img {
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      margin-right: 10px;
-    }
-
-    .header .userinfo {
-      display: flex;
-      align-items: center;
-    }
-
-    .content {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background-color: #36393f;
-      border-radius: 8px;
-      text-align: center;
-    }
-
-    .stat {
-      font-size: 24px;
-      margin: 20px 0;
-    }
-
-    .buttons a {
-      display: inline-block;
-      margin: 10px;
-      padding: 12px 24px;
-      background-color: #7289da;
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-
-    .buttons a:hover {
-      background-color: #5b6eae;
-    }
-  </style>
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="header">
-    <div class="userinfo">
-      <img id="avatar" src="" alt="avatar">
-      <span id="username">Loading...</span>
-    </div>
-    <a href="/admin" class="buttons">Admin Panel</a>
-  </div>
+  <div id="header"></div>
 
-  <div class="content">
+  <div class="content" style="max-width:800px;margin:40px auto;padding:20px;text-align:center;background-color:#36393f;border-radius:8px;">
     <h1>Meatload Dashboard</h1>
-
     <div class="stat" id="totalUsers">Total Users: loading...</div>
     <div class="stat" id="totalGuilds">Total Guilds: loading...</div>
     <div class="stat" id="loadedCogs">Cogs Loaded: loading...</div>
-
-    <div class="buttons">
-      <a href="/guilds.html">Manage Guilds</a>
-      <a href="/cc.html">Custom Commands</a>
-    </div>
   </div>
 
   <script>
-    const userId = localStorage.getItem("user_id");
-
-    async function fetchUser() {
-      const res = await fetch("/api/user/" + userId);
-      const data = await res.json();
-      document.getElementById("username").textContent = data.name;
-      if (data.avatar) {
-        document.getElementById("avatar").src = data.avatar;
-      }
-    }
-
-    async function fetchStats() {
-      const res = await fetch("/api/stats", {
-        headers: { "X-User-ID": userId }
+    fetch('/header.html')
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("header").innerHTML = html;
+        const userId = localStorage.getItem("user_id");
+        fetch("/api/user/" + userId).then(res => res.json()).then(user => {
+          document.getElementById("username").textContent = user.name;
+          if (user.avatar) document.getElementById("avatar").src = user.avatar;
+        });
       });
-      const data = await res.json();
-      document.getElementById("totalUsers").textContent = "Total Users: " + data.total_users;
-      document.getElementById("totalGuilds").textContent = "Total Guilds: " + data.total_guilds;
-      document.getElementById("loadedCogs").textContent = "Cogs Loaded: " + data.cogs_loaded.length;
-    }
 
-    window.onload = function() {
-      fetchUser();
-      fetchStats();
-    };
+    const userId = localStorage.getItem("user_id");
+    fetch("/api/stats", { headers: { "X-User-ID": userId } })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("totalUsers").textContent = "Total Users: " + data.total_users;
+        document.getElementById("totalGuilds").textContent = "Total Guilds: " + data.total_guilds;
+        document.getElementById("loadedCogs").textContent = "Cogs Loaded: " + data.cogs_loaded.length;
+      });
   </script>
 </body>
 </html>
