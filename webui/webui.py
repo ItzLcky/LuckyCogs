@@ -9,7 +9,6 @@ from redbot.core import commands, Config
 from redbot.core.bot import Red
 from redbot.cogs.customcom import CustomCommands
 import discord
-import json
 
 log = logging.getLogger("red.WebUI")
 
@@ -136,24 +135,18 @@ class WebUI(commands.Cog):
             "cogs_loaded": list(self.bot.cogs.keys())
         })
 
-async def handle_list_ccs(self, request):
-    user_id = int(request.headers.get("X-User-ID", 0))
-    if user_id not in self._authed_users:
-        return web.json_response({"error": "Unauthorized"}, status=403)
+    async def handle_list_ccs(self, request):
+        user_id = int(request.headers.get("X-User-ID", 0))
+        if user_id not in self._authed_users:
+            return web.json_response({"error": "Unauthorized"}, status=403)
 
-    guild_id = request.match_info["guild_id"]
-    path = Path.home() / "meatload-data" / "cogs" / "CustomCommands" / "settings.json"
+        guild_id = int(request.match_info["guild_id"])
+        cog: CustomCommands = self.bot.get_cog("CustomCommands")
+        if not cog:
+            return web.json_response({"error": "CustomCommands cog not loaded"}, status=500)
 
-    try:
-        with open(path) as f:
-            data = json.load(f)
-
-        commands = data.get(guild_id, {})
+        commands = await cog.config.guild_from_id(guild_id).commands()
         return web.json_response({k.lower(): v for k, v in commands.items()})
-    except Exception as e:
-        log.exception(f"Failed to read CCs from settings.json for guild {guild_id}")
-        return web.json_response({"error": "Failed to load commands"}, status=500)
-
 
     async def handle_edit_cc(self, request):
         user_id = int(request.headers.get("X-User-ID", 0))
