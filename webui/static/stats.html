@@ -10,7 +10,7 @@
     body {
       background-color: #f5f5f5;
       margin: 0;
-      padding-top: 64px;
+      padding-top: 64px; /* space for imported header */
       font-family: Roboto, sans-serif;
     }
     .dashboard-container {
@@ -36,19 +36,6 @@
   </style>
 </head>
 <body>
-  <!-- Top App Bar -->
-  <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
-    <div class="mdc-top-app-bar__row">
-      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-        <span class="mdc-top-app-bar__title">Meatload Dashboard</span>
-      </section>
-      <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
-        <span id="username" class="mdc-top-app-bar__action-item"></span>
-        <img id="avatar" class="mdc-top-app-bar__action-item" src="" alt="User Avatar" />
-      </section>
-    </div>
-  </header>
-
   <div class="dashboard-container">
     <div class="stats-grid">
       <div class="mdc-card stat-card">
