@@ -5,6 +5,12 @@
   <title>Custom Commands</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
+    body {
+      background-color: #2f3136;
+      color: #fff;
+      font-family: sans-serif;
+    }
+
     .container {
       max-width: 800px;
       margin: 40px auto;
@@ -27,23 +33,27 @@
       padding: 10px;
       border-radius: 6px;
       margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .cc-entry button {
-      background: #f04747;
-      margin-top: 8px;
+    .cc-name {
+      font-weight: bold;
+      flex: 1;
     }
 
-    .cc-entry button:hover {
-      background: #c03e3e;
+    .cc-buttons button {
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      margin-left: 10px;
+      color: #fff;
     }
 
-    .cc-response {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      white-space: normal;
+    .cc-buttons button:hover {
+      color: #57f287;
     }
 
     .success { color: #57f287; }
@@ -63,6 +73,39 @@
     .pagination button:hover {
       background: #4752c4;
     }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #2f3136;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .modal h3 {
+      margin-top: 0;
+    }
+
+    .modal-close {
+      text-align: right;
+      font-size: 18px;
+      cursor: pointer;
+      color: #f04747;
+    }
+
+    .modal-close:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -78,17 +121,23 @@
 
     <p id="commandCount" style="font-weight: bold;"></p>
     <div id="ccList"></div>
-
-    <hr />
-    <h2>Create or Edit Command</h2>
-    <label for="ccName">Command Name:</label>
-    <input type="text" id="ccName" placeholder="e.g. hello" />
-
-    <label for="ccResponse">Response:</label>
-    <textarea id="ccResponse" rows="4" placeholder="Response text..."></textarea>
-
-    <button onclick="saveCommand()">Save Command</button>
+    <div class="pagination" id="paginationControls"></div>
     <p id="statusMsg"></p>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-close" onclick="closeModal()">✖ Close</div>
+      <h3>Edit Command</h3>
+      <label for="ccName">Command Name:</label>
+      <input type="text" id="ccName" />
+
+      <label for="ccResponse">Response:</label>
+      <textarea id="ccResponse" rows="4"></textarea>
+
+      <button onclick="saveCommand()">Save Changes</button>
+    </div>
   </div>
 
   <script>
@@ -148,16 +197,11 @@
       renderPage();
     }
 
-    function formatResponse(text) {
-      const imageRegex = /(https?:\/\/\S+\.(?:png|jpe?g|gif|webp))/gi;
-      return text.replace(imageRegex, url => {
-        return `<br><img src="${url}" alt="image" style="max-width: 100%; border-radius: 6px; margin-top: 8px;" />`;
-      });
-    }
-
     function renderPage() {
       const list = document.getElementById("ccList");
+      const nav = document.getElementById("paginationControls");
       list.innerHTML = "";
+      nav.innerHTML = "";
 
       const start = currentPage * 30;
       const end = start + 30;
@@ -169,16 +213,14 @@
         const div = document.createElement("div");
         div.className = "cc-entry";
         div.innerHTML = `
-          <strong>${name}</strong><br />
-          <div class="cc-response">${formatResponse(cmd.response)}</div>
-          <button onclick="editCommand(${JSON.stringify(name)}, ${JSON.stringify(cmd.response)})">Edit</button>
-          <button onclick="deleteCommand('${name}')">Delete</button>
+          <div class="cc-name">${name}</div>
+          <div class="cc-buttons">
+            <button title="Edit" onclick="editCommand(${JSON.stringify(name)}, ${JSON.stringify(cmd.response)})">📝</button>
+            <button title="Delete" onclick="deleteCommand('${name}')">❌</button>
+          </div>
         `;
         list.appendChild(div);
       }
-
-      const nav = document.createElement("div");
-      nav.className = "pagination";
 
       if (currentPage > 0) {
         const prev = document.createElement("button");
@@ -193,13 +235,16 @@
         next.onclick = () => { currentPage++; renderPage(); };
         nav.appendChild(next);
       }
-
-      list.appendChild(nav);
     }
 
     function editCommand(name, response) {
       document.getElementById("ccName").value = name;
       document.getElementById("ccResponse").value = response;
+      document.getElementById("editModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("editModal").style.display = "none";
     }
 
     async function saveCommand() {
@@ -226,6 +271,7 @@
       if (res.ok) {
         status.textContent = "Command saved successfully.";
         status.className = "success";
+        closeModal();
         loadCommands();
       } else {
         status.textContent = "Failed to save command.";
