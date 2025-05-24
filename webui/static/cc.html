@@ -148,6 +148,13 @@
       renderPage();
     }
 
+    function formatResponse(text) {
+      const imageRegex = /(https?:\/\/\S+\.(?:png|jpe?g|gif|webp))/gi;
+      return text.replace(imageRegex, url => {
+        return `<br><img src="${url}" alt="image" style="max-width: 100%; border-radius: 6px; margin-top: 8px;" />`;
+      });
+    }
+
     function renderPage() {
       const list = document.getElementById("ccList");
       list.innerHTML = "";
@@ -158,12 +165,12 @@
 
       for (const [name, cmd] of pageItems) {
         if (!cmd || typeof cmd !== "object" || !cmd.response) continue;
-        
+
         const div = document.createElement("div");
         div.className = "cc-entry";
         div.innerHTML = `
           <strong>${name}</strong><br />
-          <div class="cc-response">${cmd.response}</div>
+          <div class="cc-response">${formatResponse(cmd.response)}</div>
           <button onclick="editCommand(${JSON.stringify(name)}, ${JSON.stringify(cmd.response)})">Edit</button>
           <button onclick="deleteCommand('${name}')">Delete</button>
         `;
