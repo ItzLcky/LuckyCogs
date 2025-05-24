@@ -2,304 +2,269 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Custom Commands</title>
-  <link rel="stylesheet" href="/style.css" />
+  <!-- Material 3 Web Components -->
+  <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" />
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
   <style>
+    :root {
+      --mdc-theme-primary: #6200ee;
+      --mdc-theme-secondary: #018786;
+    }
     body {
-      background-color: #2f3136;
-      color: #fff;
-      font-family: sans-serif;
+      margin: 0;
+      font-family: Roboto, sans-serif;
+      background-color: #f5f5f5;
     }
-
-    .container {
+    .page-container {
       max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #36393f;
-      border-radius: 8px;
+      margin: 24px auto;
+      padding: 16px;
     }
-
-    select, input, textarea, button {
-      width: 100%;
-      padding: 10px;
-      margin: 8px 0;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
+    .mdc-button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
     }
-
     .cc-entry {
-      background: #202225;
-      padding: 10px;
-      border-radius: 6px;
       margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
-
-    .cc-name {
-      font-weight: bold;
-      flex: 1;
-    }
-
-    .cc-buttons {
-      display: flex;
-      gap: 10px;
-    }
-
-    .cc-buttons button {
-      background: transparent;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      color: #fff;
-    }
-
-    .cc-buttons button:hover {
-      color: #57f287;
-    }
-
-    .success { color: #57f287; }
-    .error { color: #f04747; }
-
-    .pagination {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .pagination button {
-      background: #5865f2;
-      margin: 5px;
-      padding: 8px 16px;
-    }
-
-    .pagination button:hover {
-      background: #4752c4;
-    }
-
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
-    }
-
-    .modal-content {
-      background-color: #2f3136;
-      padding: 20px;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 500px;
-    }
-
-    .modal h3 {
-      margin-top: 0;
-    }
-
-    .modal-close {
-      text-align: right;
-      font-size: 18px;
-      cursor: pointer;
-      color: #f04747;
-    }
-
-    .modal-close:hover {
-      text-decoration: underline;
+    #statusMsg {
+      min-height: 1.5em;
+      margin-top: 12px;
     }
   </style>
 </head>
 <body>
-  <div id="header"></div>
+  <!-- Header include -->
+  <div id="header-container"></div>
+  <div class="mdc-top-app-bar--fixed-adjust"></div>
 
-  <div class="container">
-    <h1>Manage Custom Commands</h1>
+  <div class="page-container">
+    <h1 class="mdc-typography--headline5">Manage Custom Commands</h1>
 
-    <label for="guildSelect">Choose a Guild:</label>
-    <select id="guildSelect" onchange="loadCommands()">
-      <option value="">-- Select a Guild --</option>
-    </select>
-
-    <p id="commandCount" style="font-weight: bold;"></p>
-    <div id="ccList"></div>
-    <div class="pagination" id="paginationControls"></div>
-    <p id="statusMsg"></p>
-  </div>
-
-  <!-- Edit Modal -->
-  <div class="modal" id="editModal">
-    <div class="modal-content">
-      <div class="modal-close" onclick="closeModal()">✖ Close</div>
-      <h3>Edit Command</h3>
-      <label for="ccName">Command Name:</label>
-      <input type="text" id="ccName" />
-
-      <label for="ccResponse">Response:</label>
-      <textarea id="ccResponse" rows="4"></textarea>
-
-      <button onclick="saveCommand()">Save Changes</button>
+    <!-- Guild selector -->
+    <div class="mdc-select mdc-select--outlined" id="guildSelectWrapper">
+      <select class="mdc-select__native-control" id="guildSelect">
+        <option value="">-- Select a Guild --</option>
+      </select>
+      <span class="mdc-floating-label">Choose a Guild</span>
+      <div class="mdc-line-ripple"></div>
     </div>
+
+    <p id="commandCount" class="mdc-typography--subtitle1"></p>
+    <div id="ccList"></div>
+    <div id="paginationControls" class="mdc-button-row"></div>
+    <p id="statusMsg" class="mdc-typography--body2"></p>
   </div>
 
-  <script>
-    const userId = localStorage.getItem("user_id");
-    let currentPage = 0;
-    let commandsData = [];
+  <!-- Edit Dialog -->
+  <div class="mdc-dialog" id="editDialog" role="alertdialog" aria-modal="true" aria-labelledby="edit-dialog-title" aria-describedby="edit-dialog-content">
+    <div class="mdc-dialog__container">
+      <div class="mdc-dialog__surface">
+        <h2 class="mdc-dialog__title" id="edit-dialog-title">Edit Command</h2>
+        <div class="mdc-dialog__content" id="edit-dialog-content">
+          <div class="mdc-text-field mdc-text-field--outlined" style="width:100%; margin-bottom:16px;">
+            <input type="text" id="ccName" class="mdc-text-field__input" />
+            <span class="mdc-notched-outline">
+              <span class="mdc-notched-outline__leading"></span>
+              <span class="mdc-notched-outline__notch"><span class="mdc-floating-label">Command Name</span></span>
+              <span class="mdc-notched-outline__trailing"></span>
+            </span>
+          </div>
+          <div class="mdc-text-field mdc-text-field--outlined" style="width:100%;">
+            <textarea id="ccResponse" class="mdc-text-field__input" rows="4"></textarea>
+            <span class="mdc-notched-outline">
+              <span class="mdc-notched-outline__leading"></span>
+              <span class="mdc-notched-outline__notch"><span class="mdc-floating-label">Response</span></span>
+              <span class="mdc-notched-outline__trailing"></span>
+            </span>
+          </div>
+        </div>
+        <footer class="mdc-dialog__actions">
+          <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close">
+            <span class="mdc-button__label">Cancel</span>
+          </button>
+          <button type="button" class="mdc-button mdc-button--raised mdc-dialog__button" data-mdc-dialog-action="save" id="saveBtn">
+            <span class="mdc-button__label">Save</span>
+          </button>
+        </footer>
+      </div>
+    </div>
+    <div class="mdc-dialog__scrim"></div>
+  </div>
 
-    fetch("/header.html")
+  <!-- Material Components JS -->
+  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+  <script>
+    // Initialize MDC
+    mdc.autoInit();
+    const guildSelect = new mdc.select.MDCSelect(document.getElementById('guildSelectWrapper'));
+    const dialog = new mdc.dialog.MDCDialog(document.getElementById('editDialog'));
+
+    const userId = localStorage.getItem('user_id');
+    let commandsData = [];
+    let currentPage = 0;
+
+    // Load header fragment
+    fetch('header.html')
       .then(res => res.text())
       .then(html => {
-        document.getElementById("header").innerHTML = html;
-        fetch("/api/user/" + userId)
-          .then(res => res.json())
-          .then(user => {
-            document.getElementById("username").textContent = user.name;
-            if (user.avatar) document.getElementById("avatar").src = user.avatar;
+        document.getElementById('header-container').innerHTML = html;
+        mdc.autoInit();
+        return fetch('/api/user/' + userId);
+      })
+      .then(res => res.json())
+      .then(user => {
+        document.getElementById('username').textContent = user.name;
+        if (user.avatar) document.getElementById('avatar').src = user.avatar;
+      })
+      .catch(err => console.error('Header load error:', err));
+
+    // Populate guilds
+    function loadGuilds() {
+      fetch('/api/guilds', { headers: { 'X-User-ID': userId } })
+        .then(res => res.json())
+        .then(data => {
+          const native = document.getElementById('guildSelect');
+          data.guilds.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = `${g.name} (${g.member_count})`;
+            native.appendChild(opt);
           });
-      });
-
-    async function loadGuilds() {
-      const res = await fetch("/api/guilds", {
-        headers: { "X-User-ID": userId }
-      });
-      const data = await res.json();
-      const select = document.getElementById("guildSelect");
-      data.guilds.forEach(g => {
-        const option = document.createElement("option");
-        option.value = g.id;
-        option.textContent = `${g.name} (${g.member_count})`;
-        select.appendChild(option);
-      });
+          guildSelect.layout();
+        });
     }
+    guildSelect.listen('MDCSelect:change', loadCommands);
 
-    async function loadCommands() {
-      const guildId = document.getElementById("guildSelect").value;
-      const list = document.getElementById("ccList");
-      const count = document.getElementById("commandCount");
-      list.innerHTML = "";
-      count.textContent = "";
+    // Load and render commands
+    function loadCommands() {
+      const guildId = document.getElementById('guildSelect').value;
+      const list = document.getElementById('ccList');
+      const count = document.getElementById('commandCount');
+      document.getElementById('paginationControls').innerHTML = '';
+      document.getElementById('statusMsg').textContent = '';
+      list.innerHTML = '';
+      count.textContent = '';
       currentPage = 0;
 
       if (!guildId) return;
 
-      const res = await fetch(`/api/guild/${guildId}/ccs`, {
-        headers: { "X-User-ID": userId }
-      });
-
-      if (!res.ok) {
-        list.innerHTML = "<p class='error'>Failed to load commands.</p>";
-        return;
-      }
-
-      const data = await res.json();
-      commandsData = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
-      count.textContent = `Total Commands: ${commandsData.length}`;
-
-      renderPage();
+      fetch(`/api/guild/${guildId}/ccs`, { headers: { 'X-User-ID': userId } })
+        .then(res => res.json())
+        .then(data => {
+          commandsData = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0]));
+          count.textContent = `Total Commands: ${commandsData.length}`;
+          renderPage();
+        })
+        .catch(() => {
+          document.getElementById('statusMsg').textContent = 'Failed to load commands.';
+        });
     }
 
     function renderPage() {
-      const list = document.getElementById("ccList");
-      const nav = document.getElementById("paginationControls");
-      list.innerHTML = "";
-      nav.innerHTML = "";
-
+      const list = document.getElementById('ccList');
+      const nav = document.getElementById('paginationControls');
+      list.innerHTML = '';
+      nav.innerHTML = '';
       const start = currentPage * 30;
       const end = start + 30;
       const pageItems = commandsData.slice(start, end);
 
-      for (const [name, cmd] of pageItems) {
-        if (!cmd || typeof cmd !== "object" || !cmd.response) continue;
+      pageItems.forEach(([name, cmd]) => {
+        if (!cmd || !cmd.response) return;
+        const card = document.createElement('div');
+        card.className = 'mdc-card cc-entry';
+        card.style = 'padding:12px; display:flex; justify-content:space-between; align-items:center;';
 
-        const div = document.createElement("div");
-        div.className = "cc-entry";
-        div.innerHTML = `
-          <div class="cc-name">${name}</div>
-          <div class="cc-buttons">
-            <button title="Edit" onclick="editCommand(${JSON.stringify(name)}, ${JSON.stringify(cmd.response)})">📝</button>
-            <button title="Delete" onclick="deleteCommand('${name}')">❌</button>
-          </div>
-        `;
-        list.appendChild(div);
-      }
+        const title = document.createElement('div');
+        title.className = 'mdc-typography--body1';
+        title.textContent = name;
+
+        const actions = document.createElement('div');
+        actions.className = 'mdc-button-row';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'mdc-icon-button material-icons';
+        editBtn.textContent = 'edit';
+        editBtn.title = 'Edit';
+        editBtn.onclick = () => editCommand(name, cmd.response);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'mdc-icon-button material-icons';
+        delBtn.textContent = 'delete';
+        delBtn.title = 'Delete';
+        delBtn.onclick = () => deleteCommand(name);
+
+        actions.append(editBtn, delBtn);
+        card.append(title, actions);
+        list.appendChild(card);
+      });
 
       if (currentPage > 0) {
-        const prev = document.createElement("button");
-        prev.textContent = "Previous";
+        const prev = document.createElement('button');
+        prev.className = 'mdc-button';
+        prev.textContent = 'Previous';
         prev.onclick = () => { currentPage--; renderPage(); };
         nav.appendChild(prev);
       }
-
       if ((currentPage + 1) * 30 < commandsData.length) {
-        const next = document.createElement("button");
-        next.textContent = "Next";
+        const next = document.createElement('button');
+        next.className = 'mdc-button';
+        next.textContent = 'Next';
         next.onclick = () => { currentPage++; renderPage(); };
         nav.appendChild(next);
       }
     }
 
     function editCommand(name, response) {
-      document.getElementById("ccName").value = name;
-      document.getElementById("ccResponse").value = response;
-      document.getElementById("editModal").style.display = "flex";
+      document.getElementById('ccName').value = name;
+      document.getElementById('ccResponse').value = response;
+      dialog.open();
     }
 
-    function closeModal() {
-      document.getElementById("editModal").style.display = "none";
-    }
+    document.querySelector('[data-mdc-dialog-action="close"]').addEventListener('click', () => dialog.close());
+    document.getElementById('saveBtn').addEventListener('click', saveCommand);
 
-    async function saveCommand() {
-      const guildId = document.getElementById("guildSelect").value;
-      const name = document.getElementById("ccName").value.trim().toLowerCase();
-      const response = document.getElementById("ccResponse").value.trim();
-      const status = document.getElementById("statusMsg");
+    function saveCommand() {
+      const guildId = document.getElementById('guildSelect').value;
+      const name = document.getElementById('ccName').value.trim().toLowerCase();
+      const response = document.getElementById('ccResponse').value.trim();
+      const status = document.getElementById('statusMsg');
 
       if (!name || !response || !guildId) {
-        status.textContent = "All fields are required.";
-        status.className = "error";
+        status.textContent = 'All fields are required.';
         return;
       }
 
-      const res = await fetch(`/api/guild/${guildId}/ccs`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": userId
-        },
+      fetch(`/api/guild/${guildId}/ccs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
         body: JSON.stringify({ name, response })
-      });
-
-      if (res.ok) {
-        status.textContent = "Command saved successfully.";
-        status.className = "success";
-        closeModal();
-        loadCommands();
-      } else {
-        status.textContent = "Failed to save command.";
-        status.className = "error";
-      }
+      })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          status.textContent = 'Command saved successfully.';
+          dialog.close();
+          loadCommands();
+        })
+        .catch(() => { status.textContent = 'Failed to save command.'; });
     }
 
-    async function deleteCommand(name) {
-      const guildId = document.getElementById("guildSelect").value;
-      const res = await fetch(`/api/guild/${guildId}/ccs/${name}`, {
-        method: "DELETE",
-        headers: { "X-User-ID": userId }
-      });
-
-      const status = document.getElementById("statusMsg");
-
-      if (res.ok) {
-        status.textContent = "Command deleted.";
-        status.className = "success";
-        loadCommands();
-      } else {
-        status.textContent = "Failed to delete command.";
-        status.className = "error";
-      }
+    function deleteCommand(name) {
+      const guildId = document.getElementById('guildSelect').value;
+      const status = document.getElementById('statusMsg');
+      fetch(`/api/guild/${guildId}/ccs/${name}`, { method: 'DELETE', headers: { 'X-User-ID': userId } })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          status.textContent = 'Command deleted.';
+          loadCommands();
+        })
+        .catch(() => { status.textContent = 'Failed to delete command.'; });
     }
 
     window.onload = loadGuilds;
