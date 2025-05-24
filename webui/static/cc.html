@@ -1,112 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Custom Commands</title>
-  <!-- Material 3 Web Components CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
-  <!-- Material Icons Outlined -->
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-  <style>
-    :root {
-      --mdc-theme-primary: #6200ee;
-      --mdc-theme-secondary: #018786;
-    }
-    body {
-      margin: 0;
-      font-family: Roboto, sans-serif;
-      background-color: #f5f5f5;
-    }
-    .page-container {
-      max-width: 800px;
-      margin: 24px auto;
-      padding: 16px;
-    }
-    .cc-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .mdc-select {
-      width: 100%;
-      max-width: 300px;
-    }
-    #statusMsg {
-      min-height: 1.5em;
-      margin-top: 12px;
-      color: var(--mdc-theme-primary);
-    }
-  </style>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-100 font-sans antialiased">
   <!-- Header include -->
   <div id="header-container"></div>
-  <div class="mdc-top-app-bar--fixed-adjust"></div>
 
-  <div class="page-container">
-    <h1 class="mdc-typography--headline5">Manage Custom Commands</h1>
+  <div class="max-w-3xl mx-auto my-6 bg-white rounded-lg shadow p-6">
+    <h1 class="text-2xl font-semibold text-gray-800 mb-6">Manage Custom Commands</h1>
 
-    <!-- Guild selector (Outlined MDC Select) -->
-    <div class="mdc-select mdc-select--outlined" id="guildSelectWrapper">
-      <select class="mdc-select__native-control" id="guildSelect" aria-label="Choose a Guild">
+    <!-- Guild selector -->
+    <div id="guildSelectWrapper" class="mb-6">
+      <label for="guildSelect" class="block text-sm font-medium text-gray-700 mb-2">
+        Choose a Guild
+      </label>
+      <select
+        id="guildSelect"
+        aria-label="Choose a Guild"
+        class="block w-full border border-gray-300 bg-white rounded-md shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+               px-3 py-2"
+      >
         <option value="" disabled selected hidden>-- Select a Guild --</option>
       </select>
-      <span class="mdc-floating-label">Choose a Guild</span>
-      <div class="mdc-notched-outline">
-        <div class="mdc-notched-outline__leading"></div>
-        <div class="mdc-notched-outline__notch"></div>
-        <div class="mdc-notched-outline__trailing"></div>
-      </div>
-      <i class="mdc-select__dropdown-icon material-icons-outlined" aria-hidden="true">arrow_drop_down</i>
     </div>
 
-    <p id="commandCount" class="mdc-typography--subtitle1"></p>
-    <div id="ccList" class="cc-list"></div>
-    <div id="paginationControls" class="mdc-button-row"></div>
-    <p id="statusMsg" class="mdc-typography--body2"></p>
+    <p id="commandCount" class="text-sm text-gray-600 mb-4"></p>
+    <div id="ccList" class="space-y-4"></div>
+    <div id="paginationControls" class="flex space-x-3 mt-6"></div>
+    <p id="statusMsg" class="min-h-[1.5em] mt-4 text-indigo-600"></p>
   </div>
 
   <!-- Edit Dialog -->
-  <div class="mdc-dialog" id="editDialog" role="alertdialog" aria-modal="true" aria-labelledby="edit-dialog-title" aria-describedby="edit-dialog-content">
-    <div class="mdc-dialog__container">
-      <div class="mdc-dialog__surface">
-        <h2 class="mdc-dialog__title" id="edit-dialog-title">Edit Command</h2>
-        <div class="mdc-dialog__content" id="edit-dialog-content">
-          <div class="mdc-text-field mdc-text-field--outlined" style="width:100%; margin-bottom:16px;">
-            <input type="text" id="ccName" class="mdc-text-field__input" aria-labelledby="cc-name-label">
-            <span id="cc-name-label" class="mdc-floating-label">Command Name</span>
-            <div class="mdc-notched-outline">
-              <div class="mdc-notched-outline__leading"></div>
-              <div class="mdc-notched-outline__notch"></div>
-              <div class="mdc-notched-outline__trailing"></div>
-            </div>
-          </div>
-          <div class="mdc-text-field mdc-text-field--outlined" style="width:100%;">
-            <textarea id="ccResponse" class="mdc-text-field__input" rows="4" aria-labelledby="cc-response-label"></textarea>
-            <span id="cc-response-label" class="mdc-floating-label">Response</span>
-            <div class="mdc-notched-outline">
-              <div class="mdc-notched-outline__leading"></div>
-              <div class="mdc-notched-outline__notch"></div>
-              <div class="mdc-notched-outline__trailing"></div>
-            </div>
-          </div>
+  <dialog
+    id="editDialog"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+    hidden
+  >
+    <form method="dialog" class="bg-white rounded-lg w-full max-w-md p-6">
+      <h2 class="text-lg font-medium text-gray-800 mb-5">Edit Command</h2>
+      <div class="space-y-5">
+        <div>
+          <label for="ccName" class="block text-sm font-medium text-gray-700 mb-1">
+            Command Name
+          </label>
+          <input
+            type="text"
+            id="ccName"
+            class="block w-full border border-gray-300 rounded-md shadow-sm
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                   px-3 py-2"
+          />
         </div>
-        <footer class="mdc-dialog__actions">
-          <button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="close">
-            <span class="mdc-button__label">Cancel</span>
-          </button>
-          <button type="button" class="mdc-button mdc-button--raised mdc-dialog__button" data-mdc-dialog-action="save" id="saveBtn">
-            <span class="mdc-button__label">Save</span>
-          </button>
-        </footer>
+        <div>
+          <label for="ccResponse" class="block text-sm font-medium text-gray-700 mb-1">
+            Response
+          </label>
+          <textarea
+            id="ccResponse"
+            rows="4"
+            class="block w-full border border-gray-300 rounded-md shadow-sm
+                   focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                   px-3 py-2 resize-none"
+          ></textarea>
+        </div>
       </div>
-    </div>
-    <div class="mdc-dialog__scrim"></div>
-  </div>
+      <div class="mt-6 flex justify-end space-x-3">
+        <button
+          type="button"
+          id="cancelBtn"
+          class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          id="saveBtn"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none"
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </dialog>
 
-  <!-- Material Components JS -->
-  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js" crossorigin="anonymous"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const userId = localStorage.getItem('user_id') || '';
@@ -120,15 +102,16 @@
         console.error(err);
       }
 
-      // Initialize MDC Web components
-      mdc.autoInit();
-      const guildSelect = new mdc.select.MDCSelect(document.getElementById('guildSelectWrapper'));
-      const dialog = new mdc.dialog.MDCDialog(document.getElementById('editDialog'));
-      guildSelect.listen('MDCSelect:change', loadCommands);
-      document.querySelector('[data-mdc-dialog-action="close"]').addEventListener('click', () => dialog.close());
+      // Native select
+      const guildSelect = document.getElementById('guildSelect');
+      guildSelect.addEventListener('change', loadCommands);
+
+      // Dialog
+      const editDialog = document.getElementById('editDialog');
+      document.getElementById('cancelBtn').addEventListener('click', () => editDialog.close());
       document.getElementById('saveBtn').addEventListener('click', saveCommand);
 
-      // Populate guilds into select
+      // Populate guilds
       await loadGuilds(userId, guildSelect);
     });
 
@@ -138,13 +121,12 @@
         const res = await fetch('/api/guilds', { headers: { 'X-User-ID': userId } });
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const data = await res.json();
-        const native = document.getElementById('guildSelect');
         data.guilds.forEach(g => {
-          const opt = document.createElement('option'); opt.value = g.id;
+          const opt = document.createElement('option');
+          opt.value = g.id;
           opt.textContent = `${g.name} (${g.member_count})`;
-          native.appendChild(opt);
+          guildSelect.appendChild(opt);
         });
-        guildSelect.layout();
       } catch (err) {
         console.error('Error loading guilds:', err);
         status.textContent = 'Failed to load guilds.';
@@ -152,6 +134,10 @@
     }
 
     // ... rest of command-loading, pagination, edit/save/delete logic unchanged ...
+    //     When you want to show the edit dialog, call:
+    //       document.getElementById('editDialog').showModal();
+    //
+    //     And saveCommand() should close it via editDialog.close().
   </script>
 </body>
 </html>
