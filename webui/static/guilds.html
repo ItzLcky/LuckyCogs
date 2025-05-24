@@ -2,67 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Guild Dashboard</title>
+  <title>Manage Guilds</title>
+  <link rel="stylesheet" href="/style.css">
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #2f3136;
-      color: white;
-      margin: 0;
-      padding: 40px;
-    }
-
     .container {
-      max-width: 700px;
-      margin: auto;
+      max-width: 800px;
+      margin: 40px auto;
       background: #36393f;
+      padding: 30px;
       border-radius: 8px;
-      padding: 20px;
     }
 
-    h1 {
-      margin-top: 0;
-    }
-
-    select, button {
-      padding: 10px;
+    .guild {
+      padding: 12px;
+      background-color: #202225;
       margin: 10px 0;
-      border-radius: 5px;
-      border: none;
-      font-size: 16px;
+      border-radius: 6px;
     }
 
-    select {
-      width: 100%;
-    }
-
-    .stat {
-      margin: 15px 0;
-    }
-
-    .label {
+    .guild-name {
+      font-size: 20px;
       font-weight: bold;
     }
 
-    .error {
-      color: #f04747;
+    .guild-stats {
+      font-size: 14px;
+      color: #ccc;
     }
   </style>
 </head>
 <body>
+  <div id="header"></div>
+
   <div class="container">
-    <h1>Guild Dashboard</h1>
-
-    <label for="guildSelect">Select a Guild:</label>
-    <select id="guildSelect" onchange="loadGuildStats()">
-      <option value="">-- Choose a Guild --</option>
-    </select>
-
-    <div id="guildStats" style="margin-top: 20px;"></div>
+    <h1>Guilds</h1>
+    <div id="guildList">Loading...</div>
   </div>
 
   <script>
-        fetch('/header.html')
+    fetch('/header.html')
       .then(res => res.text())
       .then(html => {
         document.getElementById("header").innerHTML = html;
@@ -72,56 +50,29 @@
           if (user.avatar) document.getElementById("avatar").src = user.avatar;
         });
       });
+
     const userId = localStorage.getItem("user_id");
 
-    async function loadGuilds() {
-      const res = await fetch("/api/guilds", {
-        headers: { "X-User-ID": userId }
+    fetch("/api/guilds", {
+      headers: { "X-User-ID": userId }
+    })
+    .then(res => res.json())
+    .then(data => {
+      const list = document.getElementById("guildList");
+      list.innerHTML = "";
+      data.guilds.forEach(g => {
+        const div = document.createElement("div");
+        div.className = "guild";
+        div.innerHTML = `
+          <div class="guild-name">${g.name}</div>
+          <div class="guild-stats">ID: ${g.id} • Members: ${g.member_count}</div>
+        `;
+        list.appendChild(div);
       });
-
-      if (!res.ok) {
-        document.getElementById("guildStats").innerHTML = '<p class="error">Failed to load guilds.</p>';
-        return;
-      }
-
-      const data = await res.json();
-      const select = document.getElementById("guildSelect");
-
-      for (const guild of data.guilds) {
-        const opt = document.createElement("option");
-        opt.value = guild.id;
-        opt.textContent = `${guild.name} (${guild.member_count} members)`;
-        select.appendChild(opt);
-      }
-    }
-
-    async function loadGuildStats() {
-      const guildId = document.getElementById("guildSelect").value;
-      if (!guildId) return;
-
-      const res = await fetch(`/api/guild/${guildId}`, {
-        headers: { "X-User-ID": userId }
-      });
-
-      const container = document.getElementById("guildStats");
-      container.innerHTML = "";
-
-      if (!res.ok) {
-        const err = await res.json();
-        container.innerHTML = `<p class="error">${err.error}</p>`;
-        return;
-      }
-
-      const data = await res.json();
-
-      container.innerHTML = `
-        <div class="stat"><span class="label">Guild:</span> ${data.name}</div>
-        <div class="stat"><span class="label">Members:</span> ${data.member_count}</div>
-        <div class="stat"><span class="label">Messages Tracked:</span> ${data.message_count}</div>
-      `;
-    }
-
-    window.onload = loadGuilds;
+    })
+    .catch(() => {
+      document.getElementById("guildList").innerHTML = "Failed to load guilds.";
+    });
   </script>
 </body>
 </html>
