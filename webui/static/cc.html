@@ -135,7 +135,7 @@
         div.className = "cc-entry";
         div.innerHTML = `
           <strong>${name}</strong><br/>
-          <pre>${cmd.response}</pre>
+          <div style="white-space: pre-wrap; word-wrap: break-word;">${cmd.response}</div>
           <button onclick="deleteCC('${name}')">Delete</button>
         `;
         list.appendChild(div);
