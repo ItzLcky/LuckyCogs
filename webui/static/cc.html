@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Custom Commands</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #2f3136;
+      color: white;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #36393f;
+      padding: 30px;
+      border-radius: 8px;
+    }
+
+    select, input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #5865f2;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #4752c4;
+    }
+
+    .cc-entry {
+      background: #202225;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    .cc-entry button {
+      background: #f04747;
+      margin-top: 5px;
+    }
+
+    .cc-entry button:hover {
+      background: #c03e3e;
+    }
+
+    .label {
+      font-weight: bold;
+      margin-top: 20px;
+    }
+
+    .error {
+      color: #f04747;
+    }
+
+    .success {
+      color: #57f287;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Manage Custom Commands</h1>
+
+    <label for="guildSelect">Select Guild:</label>
+    <select id="guildSelect" onchange="loadCCs()">
+      <option value="">-- Select a Guild --</option>
+    </select>
+
+    <div id="ccList"></div>
+
+    <hr>
+    <h2>Create or Edit Command</h2>
+    <label for="ccName">Command Name:</label>
+    <input type="text" id="ccName" placeholder="e.g. hello" />
+
+    <label for="ccResponse">Response Text:</label>
+    <textarea id="ccResponse" rows="5" placeholder="This is the response text..."></textarea>
+
+    <button onclick="saveCC()">Save Command</button>
+
+    <p id="statusMsg"></p>
+  </div>
+
+  <script>
+    const userId = localStorage.getItem("user_id");
+
+    async function loadGuilds() {
+      const res = await fetch("/api/guilds", {
+        headers: { "X-User-ID": userId }
+      });
+
+      const data = await res.json();
+      const select = document.getElementById("guildSelect");
+
+      data.guilds.forEach(g => {
+        const option = document.createElement("option");
+        option.value = g.id;
+        option.textContent = `${g.name} (${g.member_count})`;
+        select.appendChild(option);
+      });
+    }
+
+    async function loadCCs() {
+      const guildId = document.getElementById("guildSelect").value;
+      const list = document.getElementById("ccList");
+      list.innerHTML = "";
+
+      if (!guildId) return;
+
+      const res = await fetch(`/api/guild/${guildId}/ccs`, {
+        headers: { "X-User-ID": userId }
+      });
+
+      if (!res.ok) {
+        list.innerHTML = "<p class='error'>Failed to load commands.</p>";
+        return;
+      }
+
+      const data = await res.json();
+      for (const [name, cmd] of Object.entries(data)) {
+        const div = document.createElement("div");
+        div.className = "cc-entry";
+        div.innerHTML = `
+          <strong>${name}</strong><br/>
+          <pre>${cmd.response}</pre>
+          <button onclick="deleteCC('${name}')">Delete</button>
+        `;
+        list.appendChild(div);
+      }
+    }
+
+    async function saveCC() {
+      const guildId = document.getElementById("guildSelect").value;
+      const name = document.getElementById("ccName").value.trim();
+      const response = document.getElementById("ccResponse").value.trim();
+      const status = document.getElementById("statusMsg");
+
+      if (!name || !response || !guildId) {
+        status.textContent = "All fields are required.";
+        status.className = "error";
+        return;
+      }
+
+      const res = await fetch(`/api/guild/${guildId}/ccs`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": userId
+        },
+        body: JSON.stringify({ name, response })
+      });
+
+      if (!res.ok) {
+        status.textContent = "Failed to save command.";
+        status.className = "error";
+      } else {
+        status.textContent = "Command saved successfully!";
+        status.className = "success";
+        loadCCs();
+      }
+    }
+
+    async function deleteCC(name) {
+      const guildId = document.getElementById("guildSelect").value;
+      const res = await fetch(`/api/guild/${guildId}/ccs/${name}`, {
+        method: "DELETE",
+        headers: { "X-User-ID": userId }
+      });
+
+      const status = document.getElementById("statusMsg");
+
+      if (!res.ok) {
+        status.textContent = "Failed to delete command.";
+        status.className = "error";
+      } else {
+        status.textContent = "Command deleted.";
+        status.className = "success";
+        loadCCs();
+      }
+    }
+
+    window.onload = loadGuilds;
+  </script>
+</body>
+</html>
