@@ -53,6 +53,7 @@
       <option value="">-- Select a Guild --</option>
     </select>
 
+    <p id="commandCount" style="font-weight: bold;"></p>
     <div id="ccList"></div>
 
     <hr />
@@ -100,6 +101,7 @@
       const guildId = document.getElementById("guildSelect").value;
       const list = document.getElementById("ccList");
       list.innerHTML = "";
+      document.getElementById("commandCount").textContent = "";
 
       if (!guildId) return;
 
@@ -113,6 +115,7 @@
       }
 
       const data = await res.json();
+      document.getElementById("commandCount").textContent = `Total Commands: ${Object.keys(data).length}`;
 
       Object.entries(data)
         .sort((a, b) => a[0].localeCompare(b[0]))
