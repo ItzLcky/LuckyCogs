@@ -62,6 +62,16 @@
   </div>
 
   <script>
+        fetch('/header.html')
+      .then(res => res.text())
+      .then(html => {
+        document.getElementById("header").innerHTML = html;
+        const userId = localStorage.getItem("user_id");
+        fetch("/api/user/" + userId).then(res => res.json()).then(user => {
+          document.getElementById("username").textContent = user.name;
+          if (user.avatar) document.getElementById("avatar").src = user.avatar;
+        });
+      });
     const userId = localStorage.getItem("user_id");
 
     async function loadGuilds() {
