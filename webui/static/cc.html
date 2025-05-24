@@ -100,34 +100,38 @@
       });
     }
 
-    async function loadCCs() {
-      const guildId = document.getElementById("guildSelect").value;
-      const list = document.getElementById("ccList");
-      list.innerHTML = "";
+async function loadCCs() {
+  const guildId = document.getElementById("guildSelect").value;
+  const list = document.getElementById("ccList");
+  list.innerHTML = "";
 
-      if (!guildId) return;
+  if (!guildId) return;
 
-      const res = await fetch(`/api/guild/${guildId}/ccs`, {
-        headers: { "X-User-ID": userId }
-      });
+  const res = await fetch(`/api/guild/${guildId}/ccs`, {
+    headers: { "X-User-ID": userId }
+  });
 
-      if (!res.ok) {
-        list.innerHTML = "<p class='error'>Failed to load commands.</p>";
-        return;
-      }
+  if (!res.ok) {
+    list.innerHTML = "<p class='error'>Failed to load commands.</p>";
+    return;
+  }
 
-      const data = await res.json();
-      for (const [name, cmd] of Object.entries(data)) {
-        const div = document.createElement("div");
-        div.className = "cc-entry";
-        div.innerHTML = `
-          <strong>${name}</strong><br/>
-          <div style="white-space: pre-wrap; word-wrap: break-word;">${cmd.response}</div>
-          <button onclick="deleteCC('${name}')">Delete</button>
-        `;
-        list.appendChild(div);
-      }
-    }
+  const data = await res.json();
+
+  Object.entries(data)
+    .sort((a, b) => a[0].localeCompare(b[0])) // Sort alphabetically
+    .forEach(([name, cmd]) => {
+      const div = document.createElement("div");
+      div.className = "cc-entry";
+      div.innerHTML = `
+        <strong>${name}</strong><br/>
+        <div style="white-space: pre-wrap; word-wrap: break-word;">${cmd.response}</div>
+        <button onclick="deleteCC('${name}')">Delete</button>
+      `;
+      list.appendChild(div);
+    });
+}
+
 
     async function saveCC() {
       const guildId = document.getElementById("guildSelect").value;
