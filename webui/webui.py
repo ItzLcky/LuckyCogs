@@ -32,6 +32,7 @@ class WebUI(commands.Cog):
         self.config.register_global(**default_global)
 
         self._authed_users = set()  # Store authed user IDs temporarily
+        self._message_counts = {}   # guild_id: message_count
 
         bot.loop.create_task(self.start_server())
 
@@ -43,6 +44,7 @@ class WebUI(commands.Cog):
         app.router.add_get("/api/ping", self.handle_ping)
         app.router.add_get("/api/user/{user_id}", self.handle_get_user)
         app.router.add_get("/api/guilds", self.handle_get_guilds)
+        app.router.add_get("/api/guild/{guild_id}", self.handle_guild_details)
         app.router.add_get("/api/stats", self.handle_stats)
 
         # Admin + OAuth
@@ -50,7 +52,7 @@ class WebUI(commands.Cog):
         app.router.add_get("/oauth/login", self.handle_oauth_login)
         app.router.add_get("/oauth/callback", self.handle_oauth_callback)
 
-        # Serve static files
+        # Static file serving
         static_path = Path(__file__).parent / "static"
         if static_path.exists():
             app.router.add_static("/", static_path, show_index=True)
@@ -70,6 +72,14 @@ class WebUI(commands.Cog):
         if self._runner:
             await self._runner.cleanup()
 
+    # === LISTENERS ===
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.guild and not message.author.bot:
+            gid = message.guild.id
+            self._message_counts[gid] = self._message_counts.get(gid, 0) + 1
+
     # === API ROUTES ===
 
     async def handle_ping(self, request):
@@ -84,7 +94,11 @@ class WebUI(commands.Cog):
 
         user = self.bot.get_user(user_id)
         if user:
-            return web.json_response({"id": user.id, "name": str(user)})
+            return web.json_response({
+                "id": user.id,
+                "name": str(user),
+                "avatar": user.avatar,
+            })
         return web.json_response({"error": "User not found"}, status=404)
 
     async def handle_get_guilds(self, request):
@@ -102,6 +116,26 @@ class WebUI(commands.Cog):
             for g in guilds
         ]
         return web.json_response({"guilds": data})
+
+    async def handle_guild_details(self, request):
+        auth_header = request.headers.get("X-User-ID")
+        if not auth_header or int(auth_header) not in self._authed_users:
+            return web.json_response({"error": "Unauthorized"}, status=403)
+
+        guild_id = int(request.match_info["guild_id"])
+        guild = self.bot.get_guild(guild_id)
+
+        if not guild:
+            return web.json_response({"error": "Guild not found"}, status=404)
+
+        message_count = self._message_counts.get(guild_id, 0)
+
+        return web.json_response({
+            "id": str(guild.id),
+            "name": guild.name,
+            "member_count": guild.member_count,
+            "message_count": message_count
+        })
 
     async def handle_stats(self, request):
         auth_header = request.headers.get("X-User-ID")
