@@ -4,9 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Custom Commands</title>
-  <!-- Material 3 Web Components -->
   <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" />
-  <!-- Material Icons (Outlined) -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
   <style>
     :root {
@@ -19,7 +17,7 @@
       background-color: #f5f5f5;
     }
     .page-container {
-      max-width: 800px;
+      max-width: 960px;
       margin: 24px auto;
       padding: 16px;
     }
@@ -40,34 +38,41 @@
   </style>
 </head>
 <body>
-  <!-- Header include -->
   <div id="header-container"></div>
   <div class="mdc-top-app-bar--fixed-adjust"></div>
 
-  <div class="page-container">
-    <h1 class="mdc-typography--headline5">Manage Custom Commands</h1>
+  <div class="mdc-layout-grid page-container">
+    <div class="mdc-layout-grid__inner">
+      <div class="mdc-layout-grid__cell--span-12">
+        <h1 class="mdc-typography--headline5">Manage Custom Commands</h1>
+      </div>
 
-    <!-- Guild selector -->
-    <div class="mdc-select mdc-select--outlined" id="guildSelectWrapper">
-      <select class="mdc-select__native-control" id="guildSelect">
-        <option value="">-- Select a Guild --</option>
-      </select>
-      <span class="mdc-floating-label">Choose a Guild</span>
-      <div class="mdc-notched-outline">
-        <div class="mdc-notched-outline__leading"></div>
-        <div class="mdc-notched-outline__notch"></div>
-        <div class="mdc-notched-outline__trailing"></div>
+      <div class="mdc-layout-grid__cell--span-12">
+        <div class="mdc-select mdc-select--outlined" id="guildSelectWrapper" style="width: 100%;">
+          <select class="mdc-select__native-control" id="guildSelect">
+            <option value="">-- Select a Guild --</option>
+          </select>
+          <span class="mdc-floating-label">Choose a Guild</span>
+          <div class="mdc-notched-outline">
+            <div class="mdc-notched-outline__leading"></div>
+            <div class="mdc-notched-outline__notch"></div>
+            <div class="mdc-notched-outline__trailing"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mdc-layout-grid__cell--span-12">
+        <p id="commandCount" class="mdc-typography--subtitle1"></p>
+      </div>
+
+      <div class="mdc-layout-grid__cell--span-12" id="ccList"></div>
+      <div class="mdc-layout-grid__cell--span-12" id="paginationControls" class="mdc-button-row"></div>
+      <div class="mdc-layout-grid__cell--span-12">
+        <p id="statusMsg" class="mdc-typography--body2"></p>
       </div>
     </div>
-    <p id="commandCount" class="mdc-typography--subtitle1"></p>
-
-    <!-- Commands list -->
-    <div id="ccList"></div>
-    <div id="paginationControls" class="mdc-button-row"></div>
-    <p id="statusMsg" class="mdc-typography--body2"></p>
   </div>
 
-  <!-- Edit Dialog -->
   <div class="mdc-dialog" id="editDialog" role="alertdialog" aria-modal="true" aria-labelledby="edit-dialog-title" aria-describedby="edit-dialog-content">
     <div class="mdc-dialog__container">
       <div class="mdc-dialog__surface">
