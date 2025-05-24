@@ -162,7 +162,7 @@
         div.innerHTML = `
           <strong>${name}</strong><br />
           <div class="cc-response">${cmd.response}</div>
-          <button onclick="editCommand('${name}', \`${cmd.response.replace(/`/g, '\\`')}\`)">Edit</button>
+          <button onclick="editCommand(${JSON.stringify(name)}, ${JSON.stringify(cmd.response)})">Edit</button>
           <button onclick="deleteCommand('${name}')">Delete</button>
         `;
         list.appendChild(div);
