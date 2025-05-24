@@ -2,161 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Bot Statistics</title>
+  <title>Meatload Dashboard</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f4f4f4;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #2f3136;
+      color: white;
       margin: 0;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+      padding: 0;
     }
 
     .header {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .user-info {
-      display: flex;
       align-items: center;
+      background-color: #23272a;
+      padding: 20px;
     }
 
-    .user-info img {
+    .header img {
+      border-radius: 50%;
       width: 48px;
       height: 48px;
-      border-radius: 50%;
       margin-right: 10px;
     }
 
-    h1 {
-      margin: 0;
-      color: #333;
+    .header .userinfo {
+      display: flex;
+      align-items: center;
+    }
+
+    .content {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #36393f;
+      border-radius: 8px;
+      text-align: center;
     }
 
     .stat {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
+      font-size: 24px;
+      margin: 20px 0;
     }
 
-    .stat:last-child {
-      border-bottom: none;
-    }
-
-    .label {
-      font-weight: bold;
-    }
-
-    button {
-      padding: 10px 20px;
-      background: #5865f2;
+    .buttons a {
+      display: inline-block;
+      margin: 10px;
+      padding: 12px 24px;
+      background-color: #7289da;
       color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-left: 10px;
-    }
-
-    button:hover {
-      background: #4752c4;
-    }
-
-    .error {
-      color: red;
+      text-decoration: none;
+      border-radius: 6px;
       font-weight: bold;
+    }
+
+    .buttons a:hover {
+      background-color: #5b6eae;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="user-info" id="userInfo">
-        <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" />
-        <span>Loading user...</span>
-      </div>
-      <button onclick="logout()">Logout</button>
+  <div class="header">
+    <div class="userinfo">
+      <img id="avatar" src="" alt="avatar">
+      <span id="username">Loading...</span>
     </div>
+    <a href="/admin" class="buttons">Admin Panel</a>
+  </div>
 
-    <h1>Bot Statistics</h1>
-    <div id="statsContent">
-      <p>Loading stats...</p>
+  <div class="content">
+    <h1>Meatload Dashboard</h1>
+
+    <div class="stat" id="totalUsers">Total Users: loading...</div>
+    <div class="stat" id="totalGuilds">Total Guilds: loading...</div>
+    <div class="stat" id="loadedCogs">Cogs Loaded: loading...</div>
+
+    <div class="buttons">
+      <a href="/guilds.html">Manage Guilds</a>
+      <a href="/cc.html">Custom Commands</a>
     </div>
-    <button onclick="loadStats()">Refresh Stats</button>
   </div>
 
   <script>
-    async function loadUserInfo() {
-      const userId = localStorage.getItem("user_id");
-      const userInfoDiv = document.getElementById("userInfo");
+    const userId = localStorage.getItem("user_id");
 
-      if (!userId) {
-        userInfoDiv.innerHTML = `<span class="error">Not logged in</span>`;
-        return;
+    async function fetchUser() {
+      const res = await fetch("/api/user/" + userId);
+      const data = await res.json();
+      document.getElementById("username").textContent = data.name;
+      if (data.avatar) {
+        document.getElementById("avatar").src = data.avatar;
       }
-
-      const res = await fetch(`/api/user/${userId}`);
-      if (!res.ok) {
-        userInfoDiv.innerHTML = `<span class="error">Failed to load user</span>`;
-        return;
-      }
-
-      const user = await res.json();
-      const avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar || 'a_0'}.png`;
-
-      userInfoDiv.innerHTML = `
-        <img src="${avatarURL}" alt="Avatar">
-        <span>${user.name}</span>
-      `;
     }
 
-    async function loadStats() {
-      const userId = localStorage.getItem("user_id");
-      const statsDiv = document.getElementById("statsContent");
-
-      if (!userId) {
-        statsDiv.innerHTML = '<p class="error">You are not logged in.</p>';
-        return;
-      }
-
+    async function fetchStats() {
       const res = await fetch("/api/stats", {
         headers: { "X-User-ID": userId }
       });
-
-      if (!res.ok) {
-        const error = await res.json();
-        statsDiv.innerHTML = `<p class="error">Error: ${error.error}</p>`;
-        return;
-      }
-
       const data = await res.json();
-
-      statsDiv.innerHTML = `
-        <div class="stat"><span class="label">Total Guilds:</span> <span>${data.total_guilds}</span></div>
-        <div class="stat"><span class="label">Total Users:</span> <span>${data.total_users}</span></div>
-        <div class="stat"><span class="label">Cogs Loaded:</span> <span>${data.cogs_loaded.length}</span></div>
-      `;
+      document.getElementById("totalUsers").textContent = "Total Users: " + data.total_users;
+      document.getElementById("totalGuilds").textContent = "Total Guilds: " + data.total_guilds;
+      document.getElementById("loadedCogs").textContent = "Cogs Loaded: " + data.cogs_loaded.length;
     }
 
-    function logout() {
-      localStorage.removeItem("user_id");
-      window.location.href = "/admin";
-    }
-
-    window.onload = () => {
-      loadUserInfo();
-      loadStats();
+    window.onload = function() {
+      fetchUser();
+      fetchStats();
     };
   </script>
 </body>
