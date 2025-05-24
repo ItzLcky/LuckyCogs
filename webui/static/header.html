@@ -1,24 +1,21 @@
-<!-- Header fragment using Material 3 Top App Bar -->
+<!-- Header fragment using Material Components Web (Material 3) -->
 <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
   <div class="mdc-top-app-bar__row">
-    <!-- User info in the start section -->
+    <!-- User avatar and name -->
     <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
-      <img id="avatar" class="mdc-top-app-bar__navigation-icon" src="" alt="User Avatar" />
-      <span id="username" class="mdc-top-app-bar__title">Loading...</span>
+      <button class="mdc-top-app-bar__navigation-icon mdc-icon-button" aria-label="User Avatar">
+        <img id="avatar" src="" alt="User Avatar" style="width: 40px; height: 40px; border-radius: 50%;" />
+      </button>
+      <span id="username" class="mdc-top-app-bar__title mdc-typography--title-large">Loading...</span>
     </section>
-    <!-- Navigation links in the end section -->
+    <!-- Navigation links -->
     <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
-      <a href="/stats.html" class="mdc-top-app-bar__action-item">Dashboard</a>
-      <a href="/guilds.html" class="mdc-top-app-bar__action-item">Manage Guilds</a>
-      <a href="/cc.html" class="mdc-top-app-bar__action-item">Custom Commands</a>
-      <a href="/admin" class="mdc-top-app-bar__action-item">Admin Panel</a>
+      <a href="/stats.html" class="mdc-top-app-bar__action-item mdc-typography--button">Dashboard</a>
+      <a href="/guilds.html" class="mdc-top-app-bar__action-item mdc-typography--button">Manage Guilds</a>
+      <a href="/cc.html" class="mdc-top-app-bar__action-item mdc-typography--button">Custom Commands</a>
+      <a href="/admin" class="mdc-top-app-bar__action-item mdc-typography--button">Admin Panel</a>
     </section>
   </div>
 </header>
-
-<!-- Initialize Material components; ensure mdc-auto-init script is loaded globally -->
-<script>
-  if (window.mdc) {
-    mdc.autoInit();
-  }
-</script>
+<!-- Spacer to offset the fixed top app bar -->
+<div class="mdc-top-app-bar--fixed-adjust"></div>
