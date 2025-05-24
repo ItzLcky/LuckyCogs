@@ -1,5 +1,3 @@
-# webui.py (corrected)
-
 import asyncio
 import logging
 from pathlib import Path
@@ -32,6 +30,12 @@ class WebUI(commands.Cog):
         self._authed_users = set()
         self._message_counts = {}
         bot.loop.create_task(self.start_server())
+   
+    async def handle_index_page(self, request):
+    html_path = Path(__file__).parent / "static" / "index.html"
+    if html_path.exists():
+        return web.FileResponse(html_path)
+    return web.Response(text="index.html not found", status=404)
 
     async def start_server(self):
         await self.bot.wait_until_ready()
@@ -50,6 +54,7 @@ class WebUI(commands.Cog):
         app.router.add_get("/admin", self.handle_admin_page)
         app.router.add_get("/oauth/login", self.handle_oauth_login)
         app.router.add_get("/oauth/callback", self.handle_oauth_callback)
+        app.router.add_get("/", self.handle_index_page)
 
         static_path = Path(__file__).parent / "static"
         if static_path.exists():
