@@ -1,12 +1,24 @@
-<div class="header">
-  <div class="userinfo">
-    <img id="avatar" src="" alt="avatar">
-    <span id="username">Loading...</span>
+<!-- Header fragment using Material 3 Top App Bar -->
+<header class="mdc-top-app-bar mdc-top-app-bar--fixed">
+  <div class="mdc-top-app-bar__row">
+    <!-- User info in the start section -->
+    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+      <img id="avatar" class="mdc-top-app-bar__navigation-icon" src="" alt="User Avatar" />
+      <span id="username" class="mdc-top-app-bar__title">Loading...</span>
+    </section>
+    <!-- Navigation links in the end section -->
+    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
+      <a href="/stats.html" class="mdc-top-app-bar__action-item">Dashboard</a>
+      <a href="/guilds.html" class="mdc-top-app-bar__action-item">Manage Guilds</a>
+      <a href="/cc.html" class="mdc-top-app-bar__action-item">Custom Commands</a>
+      <a href="/admin" class="mdc-top-app-bar__action-item">Admin Panel</a>
+    </section>
   </div>
-  <div class="navlinks">
-    <a href="/stats.html">Dashboard</a>
-    <a href="/guilds.html">Manage Guilds</a>
-    <a href="/cc.html">Custom Commands</a>
-    <a href="/admin">Logout</a>
-  </div>
-</div>
+</header>
+
+<!-- Initialize Material components; ensure mdc-auto-init script is loaded globally -->
+<script>
+  if (window.mdc) {
+    mdc.autoInit();
+  }
+</script>
