@@ -32,10 +32,10 @@ class WebUI(commands.Cog):
         bot.loop.create_task(self.start_server())
    
     async def handle_index_page(self, request):
-    html_path = Path(__file__).parent / "static" / "index.html"
-    if html_path.exists():
-        return web.FileResponse(html_path)
-    return web.Response(text="index.html not found", status=404)
+        html_path = Path(__file__).parent / "static" / "index.html"
+        if html_path.exists():
+            return web.FileResponse(html_path)
+        return web.Response(text="index.html not found", status=404)
 
     async def start_server(self):
         await self.bot.wait_until_ready()
