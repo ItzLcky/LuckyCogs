@@ -8,6 +8,8 @@ from aiohttp import web
 from redbot.core import commands, Config
 from redbot.core.bot import Red
 import discord
+from redbot.cogs.customcom import CustomCommands
+
 
 log = logging.getLogger("red.WebUI")
 
@@ -46,6 +48,10 @@ class WebUI(commands.Cog):
         app.router.add_get("/api/guilds", self.handle_get_guilds)
         app.router.add_get("/api/guild/{guild_id}", self.handle_guild_details)
         app.router.add_get("/api/stats", self.handle_stats)
+        app.router.add_get("/api/guild/{guild_id}/ccs", self.handle_list_ccs)
+        app.router.add_post("/api/guild/{guild_id}/ccs", self.handle_edit_cc)
+        app.router.add_delete("/api/guild/{guild_id}/ccs/{cmd_name}", self.handle_delete_cc)
+
 
         # Admin + OAuth
         app.router.add_get("/admin", self.handle_admin_page)
@@ -281,6 +287,63 @@ class WebUI(commands.Cog):
         )
         embed.add_field(name="Client ID", value=client_id or "Not Set", inline=False)
         embed.add_field(name="Client Secret", value=masked_secret, inline=False)
+
+    async def handle_list_ccs(self, request):
+    user_id = request.headers.get("X-User-ID")
+    if not user_id or int(user_id) not in self._authed_users:
+        return web.json_response({"error": "Unauthorized"}, status=403)
+
+    guild_id = int(request.match_info["guild_id"])
+    cog: CustomCommands = self.bot.get_cog("CustomCommands")
+    if not cog:
+        return web.json_response({"error": "CustomCommands cog not loaded"}, status=500)
+
+    commands = await cog.config.guild_from_id(guild_id).commands()
+    return web.json_response(commands)
+
+async def handle_edit_cc(self, request):
+    user_id = request.headers.get("X-User-ID")
+    if not user_id or int(user_id) not in self._authed_users:
+        return web.json_response({"error": "Unauthorized"}, status=403)
+
+    guild_id = int(request.match_info["guild_id"])
+    cog: CustomCommands = self.bot.get_cog("CustomCommands")
+    if not cog:
+        return web.json_response({"error": "CustomCommands cog not loaded"}, status=500)
+
+    try:
+        data = await request.json()
+        name = data["name"]
+        response = data["response"]
+    except Exception:
+        return web.json_response({"error": "Invalid payload"}, status=400)
+
+    cmds = await cog.config.guild_from_id(guild_id).commands()
+    cmds[name] = {"response": response}
+    await cog.config.guild_from_id(guild_id).commands.set(cmds)
+
+    return web.json_response({"status": "success", "updated": name})
+
+async def handle_delete_cc(self, request):
+    user_id = request.headers.get("X-User-ID")
+    if not user_id or int(user_id) not in self._authed_users:
+        return web.json_response({"error": "Unauthorized"}, status=403)
+
+    guild_id = int(request.match_info["guild_id"])
+    cmd_name = request.match_info["cmd_name"]
+    cog: CustomCommands = self.bot.get_cog("CustomCommands")
+    if not cog:
+        return web.json_response({"error": "CustomCommands cog not loaded"}, status=500)
+
+    cmds = await cog.config.guild_from_id(guild_id).commands()
+    if cmd_name not in cmds:
+        return web.json_response({"error": "Command not found"}, status=404)
+
+    del cmds[cmd_name]
+    await cog.config.guild_from_id(guild_id).commands.set(cmds)
+
+    return web.json_response({"status": "deleted", "command": cmd_name})
+
         embed.add_field(name="Redirect URI", value=redirect_uri or "Not Set", inline=False)
 
         await ctx.send(embed=embed)
