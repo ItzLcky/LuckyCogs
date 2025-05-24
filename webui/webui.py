@@ -139,24 +139,25 @@ class WebUI(commands.Cog):
         commands = await cog.config.guild_from_id(guild_id).commands()
         return web.json_response(commands)
 
-    async def handle_edit_cc(self, request):
-        user_id = int(request.headers.get("X-User-ID", 0))
-        if user_id not in self._authed_users:
-            return web.json_response({"error": "Unauthorized"}, status=403)
+async def handle_edit_cc(self, request):
+    user_id = int(request.headers.get("X-User-ID", 0))
+    if user_id not in self._authed_users:
+        return web.json_response({"error": "Unauthorized"}, status=403)
 
-        guild_id = int(request.match_info["guild_id"])
-        data = await request.json()
-        name = data.get("name")
-        response = data.get("response")
+    guild_id = int(request.match_info["guild_id"])
+    data = await request.json()
+    name = data.get("name", "").strip().lower()
+    response = data.get("response", "").strip()
 
-        if not name or not response:
-            return web.json_response({"error": "Missing fields"}, status=400)
+    if not name or not response:
+        return web.json_response({"error": "Missing fields"}, status=400)
 
-        cog: CustomCommands = self.bot.get_cog("CustomCommands")
-        cmds = await cog.config.guild_from_id(guild_id).commands()
-        cmds[name] = {"response": response}
-        await cog.config.guild_from_id(guild_id).commands.set(cmds)
-        return web.json_response({"status": "success", "updated": name})
+    cog: CustomCommands = self.bot.get_cog("CustomCommands")
+    cmds = await cog.config.guild_from_id(guild_id).commands()
+    cmds[name] = {"response": response}
+    await cog.config.guild_from_id(guild_id).commands.set(cmds)
+    return web.json_response({"status": "success", "updated": name})
+
 
     async def handle_delete_cc(self, request):
         user_id = int(request.headers.get("X-User-ID", 0))
