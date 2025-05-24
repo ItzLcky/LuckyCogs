@@ -19,7 +19,7 @@ class WebUI(commands.Cog):
         self.bot = bot
         self._runner = None
         self._site = None
-        self._port = 8080
+        self._port = 5050
 
         self.config = Config.get_conf(self, identifier=6543210)
         default_global = {
