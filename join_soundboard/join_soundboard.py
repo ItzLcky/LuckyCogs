@@ -11,11 +11,11 @@ class JoinSoundboard(commands.Cog):
         # Guild-level settings
         self.config.register_guild(
             enabled=False,
-            default_sound_id=None,  # default soundboard sound ID for this guild
+            default_sound_id=None,
         )
         # Per-member settings
         self.config.register_member(
-            sound_id=None,          # per-member soundboard sound ID
+            sound_id=None,
         )
         # Track which guilds are currently playing sounds
         self.playing_guilds = set()
@@ -36,7 +36,6 @@ class JoinSoundboard(commands.Cog):
         
         # Prevent multiple simultaneous plays in the same guild
         if guild.id in self.playing_guilds:
-            print(f"Already playing sound in {guild.name}, skipping...")
             return
         
         gconf = await self.config.guild(guild).all()
@@ -59,33 +58,9 @@ class JoinSoundboard(commands.Cog):
         # Mark this guild as currently playing
         self.playing_guilds.add(guild.id)
         
-        vc = None
         try:
-            # Check if bot is already in a voice channel in this guild
-            vc = guild.voice_client
-            
-            # If bot is in a different channel, move it
-            if vc and vc.channel != after.channel:
-                await vc.move_to(after.channel)
-            # If bot is not connected at all, connect
-            elif vc is None:
-                vc = await after.channel.connect(timeout=30.0, reconnect=True)
-            
-            # Wait for voice client to be fully ready
-            max_wait = 10  # Maximum 10 seconds
-            waited = 0
-            while not vc.is_connected() and waited < max_wait:
-                await asyncio.sleep(0.5)
-                waited += 0.5
-            
-            if not vc.is_connected():
-                print(f"Failed to establish voice connection after {max_wait} seconds")
-                return
-            
-            # Extra wait to ensure the connection is fully stable
-            await asyncio.sleep(2)
-            
-            # Play soundboard sound using HTTP API
+            # Try to send soundboard sound WITHOUT connecting to voice
+            # This may work if the API allows it
             await self.bot.http.request(
                 discord.http.Route(
                     'POST',
@@ -99,23 +74,17 @@ class JoinSoundboard(commands.Cog):
             )
             print(f"✅ Played sound {sound_id} for {member.name} in {after.channel.name}")
             
-            # Wait for sound to finish
-            await asyncio.sleep(3)
+            # Small cooldown before allowing next sound
+            await asyncio.sleep(2)
             
         except discord.HTTPException as e:
-            print(f"❌ Failed to play soundboard sound: {e}")
+            print(f"❌ HTTP Error {e.status}: {e.text}")
+            # If we get a 403 about needing to be in voice, we know we need voice connection
+            if "must be in voice channel" in str(e).lower():
+                print("⚠️ Bot needs to be in voice channel. Checking firewall/network settings.")
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
-            import traceback
-            traceback.print_exc()
         finally:
-            # Always disconnect and remove from playing set
-            if vc and vc.is_connected():
-                try:
-                    await vc.disconnect(force=True)
-                    print(f"✅ Disconnected from {after.channel.name}")
-                except Exception as e:
-                    print(f"Error disconnecting: {e}")
             self.playing_guilds.discard(guild.id)
     
     # =====================
@@ -155,45 +124,3 @@ class JoinSoundboard(commands.Cog):
         """Clear a user's custom sound so they use the default."""
         await self.config.member(member).sound_id.clear()
         await ctx.send(f"Cleared custom join sound for {member.mention}.")
-    
-    @joinsb.command(name="test")
-    async def joinsb_test(self, ctx):
-        """Test if the bot can connect to your current voice channel."""
-        if not ctx.author.voice:
-            await ctx.send("You need to be in a voice channel!")
-            return
-        
-        channel = ctx.author.voice.channel
-        
-        # Check permissions
-        permissions = channel.permissions_for(ctx.guild.me)
-        if not permissions.connect:
-            await ctx.send("❌ Bot doesn't have CONNECT permission!")
-            return
-        if not permissions.speak:
-            await ctx.send("❌ Bot doesn't have SPEAK permission!")
-            return
-        
-        try:
-            await ctx.send(f"Attempting to connect to {channel.mention}...")
-            vc = await channel.connect(timeout=30.0, reconnect=True)
-            
-            # Wait for connection to be ready
-            max_wait = 10
-            waited = 0
-            while not vc.is_connected() and waited < max_wait:
-                await asyncio.sleep(0.5)
-                waited += 0.5
-            
-            if vc.is_connected():
-                await ctx.send(f"✅ Successfully connected to {channel.mention}")
-                await asyncio.sleep(2)
-                await vc.disconnect(force=True)
-                await ctx.send("✅ Disconnected successfully")
-            else:
-                await ctx.send("❌ Connection timeout - voice client not ready")
-        except Exception as e:
-            import traceback
-            error_details = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
-            await ctx.send(f"❌ Failed to connect: {type(e).__name__}: {e}")
-            print(f"Full error:\n{error_details}")
