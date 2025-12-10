@@ -61,13 +61,12 @@ class JoinSoundboard(commands.Cog):
         # If bot is not connected at all, connect
         elif vc is None:
             try:
-                # Increase timeout to 30 seconds
                 vc = await after.channel.connect(timeout=30.0, reconnect=True)
             except Exception as e:
                 print(f"Failed to connect to voice channel: {e}")
                 return
         
-        # Wait a bit longer for connection to stabilize
+        # Wait for connection to stabilize
         await asyncio.sleep(1)
         
         # Play soundboard sound using HTTP API
@@ -84,10 +83,22 @@ class JoinSoundboard(commands.Cog):
                 }
             )
             print(f"Played sound {sound_id} for {member.name} in {after.channel.name}")
+            
+            # Wait for sound to finish (adjust time based on your sound length)
+            await asyncio.sleep(3)
+            
+            # Disconnect after playing
+            if vc and vc.is_connected():
+                await vc.disconnect()
+                
         except discord.HTTPException as e:
             print(f"Failed to play soundboard sound: {e}")
+            if vc and vc.is_connected():
+                await vc.disconnect()
         except Exception as e:
             print(f"Unexpected error playing sound: {e}")
+            if vc and vc.is_connected():
+                await vc.disconnect()
     
     # =====================
     # Configuration commands
@@ -149,7 +160,9 @@ class JoinSoundboard(commands.Cog):
             await ctx.send(f"Attempting to connect to {channel.mention}...")
             vc = await channel.connect(timeout=30.0, reconnect=True)
             await ctx.send(f"✅ Successfully connected to {channel.mention}")
+            await asyncio.sleep(2)
             await vc.disconnect()
+            await ctx.send("✅ Disconnected successfully")
         except Exception as e:
             import traceback
             error_details = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
