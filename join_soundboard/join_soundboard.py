@@ -1,4 +1,5 @@
 import discord
+import asyncio
 from redbot.core import commands, Config
 
 class JoinSoundboard(commands.Cog):
@@ -60,19 +61,14 @@ class JoinSoundboard(commands.Cog):
         # If bot is not connected at all, connect
         elif vc is None:
             try:
-                vc = await after.channel.connect(timeout=10.0, reconnect=False)
-            except discord.ClientException as e:
-                print(f"ClientException when connecting: {e}")
-                return
-            except discord.errors.TimeoutError:
-                print(f"Timeout when connecting to {after.channel.name}")
-                return
+                # Increase timeout to 30 seconds
+                vc = await after.channel.connect(timeout=30.0, reconnect=True)
             except Exception as e:
                 print(f"Failed to connect to voice channel: {e}")
                 return
         
-        # Small delay to ensure connection is stable
-        await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(milliseconds=500))
+        # Wait a bit longer for connection to stabilize
+        await asyncio.sleep(1)
         
         # Play soundboard sound using HTTP API
         try:
@@ -151,7 +147,7 @@ class JoinSoundboard(commands.Cog):
         
         try:
             await ctx.send(f"Attempting to connect to {channel.mention}...")
-            vc = await channel.connect(timeout=10.0)
+            vc = await channel.connect(timeout=30.0, reconnect=True)
             await ctx.send(f"✅ Successfully connected to {channel.mention}")
             await vc.disconnect()
         except Exception as e:
