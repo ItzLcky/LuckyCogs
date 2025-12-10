@@ -44,15 +44,35 @@ class JoinSoundboard(commands.Cog):
         try:
             sound_id = int(sound_id_str)
         except ValueError:
+            print(f"Invalid sound ID: {sound_id_str}")
             return
         
-        # Ensure the bot is in the channel
+        # Check if bot is already in a voice channel in this guild
         vc = guild.voice_client
-        if vc is None or not vc.is_connected():
+        
+        # If bot is in a different channel, move it
+        if vc and vc.channel != after.channel:
             try:
-                vc = await after.channel.connect()
-            except discord.ClientException:
+                await vc.move_to(after.channel)
+            except Exception as e:
+                print(f"Failed to move to channel: {e}")
                 return
+        # If bot is not connected at all, connect
+        elif vc is None:
+            try:
+                vc = await after.channel.connect(timeout=10.0, reconnect=False)
+            except discord.ClientException as e:
+                print(f"ClientException when connecting: {e}")
+                return
+            except discord.errors.TimeoutError:
+                print(f"Timeout when connecting to {after.channel.name}")
+                return
+            except Exception as e:
+                print(f"Failed to connect to voice channel: {e}")
+                return
+        
+        # Small delay to ensure connection is stable
+        await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(milliseconds=500))
         
         # Play soundboard sound using HTTP API
         try:
@@ -67,8 +87,11 @@ class JoinSoundboard(commands.Cog):
                     'source_guild_id': str(guild.id)
                 }
             )
+            print(f"Played sound {sound_id} for {member.name} in {after.channel.name}")
         except discord.HTTPException as e:
             print(f"Failed to play soundboard sound: {e}")
+        except Exception as e:
+            print(f"Unexpected error playing sound: {e}")
     
     # =====================
     # Configuration commands
@@ -107,3 +130,18 @@ class JoinSoundboard(commands.Cog):
         """Clear a user's custom sound so they use the default."""
         await self.config.member(member).sound_id.clear()
         await ctx.send(f"Cleared custom join sound for {member.mention}.")
+    
+    @joinsb.command(name="test")
+    async def joinsb_test(self, ctx):
+        """Test if the bot can connect to your current voice channel."""
+        if not ctx.author.voice:
+            await ctx.send("You need to be in a voice channel!")
+            return
+        
+        channel = ctx.author.voice.channel
+        try:
+            vc = await channel.connect(timeout=10.0)
+            await ctx.send(f"✅ Successfully connected to {channel.mention}")
+            await vc.disconnect()
+        except Exception as e:
+            await ctx.send(f"❌ Failed to connect: {e}")
