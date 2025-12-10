@@ -139,9 +139,23 @@ class JoinSoundboard(commands.Cog):
             return
         
         channel = ctx.author.voice.channel
+        
+        # Check permissions
+        permissions = channel.permissions_for(ctx.guild.me)
+        if not permissions.connect:
+            await ctx.send("❌ Bot doesn't have CONNECT permission!")
+            return
+        if not permissions.speak:
+            await ctx.send("❌ Bot doesn't have SPEAK permission!")
+            return
+        
         try:
+            await ctx.send(f"Attempting to connect to {channel.mention}...")
             vc = await channel.connect(timeout=10.0)
             await ctx.send(f"✅ Successfully connected to {channel.mention}")
             await vc.disconnect()
         except Exception as e:
-            await ctx.send(f"❌ Failed to connect: {e}")
+            import traceback
+            error_details = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            await ctx.send(f"❌ Failed to connect: {type(e).__name__}: {e}")
+            print(f"Full error:\n{error_details}")
