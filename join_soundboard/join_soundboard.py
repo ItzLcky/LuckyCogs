@@ -71,8 +71,19 @@ class JoinSoundboard(commands.Cog):
             elif vc is None:
                 vc = await after.channel.connect(timeout=30.0, reconnect=True)
             
-            # Wait for connection to stabilize
-            await asyncio.sleep(1)
+            # Wait for voice client to be fully ready
+            max_wait = 10  # Maximum 10 seconds
+            waited = 0
+            while not vc.is_connected() and waited < max_wait:
+                await asyncio.sleep(0.5)
+                waited += 0.5
+            
+            if not vc.is_connected():
+                print(f"Failed to establish voice connection after {max_wait} seconds")
+                return
+            
+            # Extra wait to ensure the connection is fully stable
+            await asyncio.sleep(2)
             
             # Play soundboard sound using HTTP API
             await self.bot.http.request(
@@ -86,22 +97,25 @@ class JoinSoundboard(commands.Cog):
                     'source_guild_id': str(guild.id)
                 }
             )
-            print(f"Played sound {sound_id} for {member.name} in {after.channel.name}")
+            print(f"✅ Played sound {sound_id} for {member.name} in {after.channel.name}")
             
-            # Wait for sound to finish (adjust time based on your sound length)
+            # Wait for sound to finish
             await asyncio.sleep(3)
             
         except discord.HTTPException as e:
-            print(f"Failed to play soundboard sound: {e}")
+            print(f"❌ Failed to play soundboard sound: {e}")
         except Exception as e:
-            print(f"Unexpected error playing sound: {e}")
+            print(f"❌ Unexpected error: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             # Always disconnect and remove from playing set
             if vc and vc.is_connected():
                 try:
                     await vc.disconnect(force=True)
-                except:
-                    pass
+                    print(f"✅ Disconnected from {after.channel.name}")
+                except Exception as e:
+                    print(f"Error disconnecting: {e}")
             self.playing_guilds.discard(guild.id)
     
     # =====================
@@ -139,4 +153,47 @@ class JoinSoundboard(commands.Cog):
     @joinsb.command(name="clearuser")
     async def joinsb_clearuser(self, ctx, member: discord.Member):
         """Clear a user's custom sound so they use the default."""
-        await self.config.memb
+        await self.config.member(member).sound_id.clear()
+        await ctx.send(f"Cleared custom join sound for {member.mention}.")
+    
+    @joinsb.command(name="test")
+    async def joinsb_test(self, ctx):
+        """Test if the bot can connect to your current voice channel."""
+        if not ctx.author.voice:
+            await ctx.send("You need to be in a voice channel!")
+            return
+        
+        channel = ctx.author.voice.channel
+        
+        # Check permissions
+        permissions = channel.permissions_for(ctx.guild.me)
+        if not permissions.connect:
+            await ctx.send("❌ Bot doesn't have CONNECT permission!")
+            return
+        if not permissions.speak:
+            await ctx.send("❌ Bot doesn't have SPEAK permission!")
+            return
+        
+        try:
+            await ctx.send(f"Attempting to connect to {channel.mention}...")
+            vc = await channel.connect(timeout=30.0, reconnect=True)
+            
+            # Wait for connection to be ready
+            max_wait = 10
+            waited = 0
+            while not vc.is_connected() and waited < max_wait:
+                await asyncio.sleep(0.5)
+                waited += 0.5
+            
+            if vc.is_connected():
+                await ctx.send(f"✅ Successfully connected to {channel.mention}")
+                await asyncio.sleep(2)
+                await vc.disconnect(force=True)
+                await ctx.send("✅ Disconnected successfully")
+            else:
+                await ctx.send("❌ Connection timeout - voice client not ready")
+        except Exception as e:
+            import traceback
+            error_details = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
+            await ctx.send(f"❌ Failed to connect: {type(e).__name__}: {e}")
+            print(f"Full error:\n{error_details}")
