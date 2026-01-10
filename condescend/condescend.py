@@ -55,6 +55,16 @@ class Condescend(commands.Cog):
         await self.config.system_prompt.set(prompt)
         await ctx.send("Persona updated. I'm sure it's an improvement.")
 
+    @commands.command()
+    @commands.is_owner()
+    async def setmodel(self, ctx, model_name: str):
+        """
+        Set the OpenAI model to use.
+        Common options: gpt-4o, gpt-4o-mini, gpt-3.5-turbo
+        """
+        await self.config.model.set(model_name)
+        await ctx.send(f"Model changed to `{model_name}`. Let's hope your wallet can handle it.")
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         # 1. Ignore yourself and other bots
