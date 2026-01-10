@@ -123,5 +123,6 @@ class Condescend(commands.Cog):
                 await message.reply(reply_text, mention_author=True)
 
             except Exception as e:
-                # Log error to console, but don't spam chat
+                # Send the error to Discord so we can see it
+                await message.reply(f"❌ **Error:** {str(e)}", mention_author=True)
                 print(f"Error in Condescend cog: {e}")
