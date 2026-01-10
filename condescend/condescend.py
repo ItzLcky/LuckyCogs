@@ -89,15 +89,20 @@ class Condescend(commands.Cog):
 
         # 4. Fetch the message the user is replying TO (context)
         try:
-            # We need the original message to give the AI context
+            # Get the original message object
             replied_msg = message.reference.resolved
             if not replied_msg:
-                # If the message isn't in cache, we might need to fetch it
+                # If not in cache, fetch it from the API
                 channel = self.bot.get_channel(message.channel.id)
                 replied_msg = await channel.fetch_message(message.reference.message_id)
-                
+            
+            # Extract content and NAMES
+            original_author = replied_msg.author.display_name
             original_text = replied_msg.content
-            user_text = message.content.replace(f"<@{self.bot.user.id}>", "").strip()
+            
+            my_author = message.author.display_name
+            # Remove the bot mention from your message so the AI just sees your text
+            user_text = message.content.replace(f"<@{self.bot.user.id}>", "").replace(f"<@!{self.bot.user.id}>", "").strip()
             
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             return # Fail silently if we can't read the context
@@ -108,19 +113,45 @@ class Condescend(commands.Cog):
                 system_prompt = await self.config.system_prompt()
                 model = await self.config.model()
 
-                response = await self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"The user replied to this text: '{original_text}'. The user said: '{user_text}'."}
-                    ],
-                    max_tokens=150
+                # Fix for o1 models
+                is_o1 = model.startswith("o1")
+                token_arg_name = "max_completion_tokens" if is_o1 else "max_tokens"
+                
+                # Construct the conversation context
+                # We format it like a script so the LLM understands the flow
+                conversation_context = (
+                    f"CONTEXT:\n"
+                    f"User '{original_author}' said: \"{original_text}\"\n"
+                    f"User '{my_author}' (YOU are replying to them) replied: \"{user_text}\"\n\n"
+                    f"INSTRUCTION: Reply to '{my_author}' based on their text, but keep the context of what '{original_author}' said in mind."
                 )
+
+                messages_payload = []
+                if is_o1:
+                    # o1: Combine system prompt into user message
+                    full_prompt = f"{system_prompt}\n\n{conversation_context}"
+                    messages_payload.append({"role": "user", "content": full_prompt})
+                else:
+                    # GPT-4o / Standard: Use system role
+                    messages_payload.append({"role": "system", "content": system_prompt})
+                    messages_payload.append({"role": "user", "content": conversation_context})
+
+                api_args = {
+                    "model": model,
+                    "messages": messages_payload,
+                    token_arg_name: 300 
+                }
+
+                response = await self.client.chat.completions.create(**api_args)
                 
                 reply_text = response.choices[0].message.content
                 
                 # 6. Reply back
                 await message.reply(reply_text, mention_author=True)
+
+            except Exception as e:
+                await message.reply(f"❌ **Error:** {str(e)}", mention_author=True)
+                print(f"Error in Condescend cog: {e}")
 
             except Exception as e:
                 # Send the error to Discord so we can see it
