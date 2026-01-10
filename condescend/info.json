@@ -1,0 +1,8 @@
+{
+    "author": "Sean Dobens",
+    "description": "Replies to mentions in a condescending manner using an LLM.",
+    "install_msg": "Don't forget to set your API key with [p]setopenai",
+    "min_bot_version": "3.5.0",
+    "short": "Condescending AI replies",
+    "tags": ["fun", "ai", "llm"]
+}
