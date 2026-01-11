@@ -4,17 +4,17 @@ from openai import AsyncOpenAI
 
 class Condescend(commands.Cog):
     """
-    A cog that replies condescendingly when mentioned in a reply.
+    A cog that replies condescendingly when mentioned in a reply, with memory.
     """
 
     def __init__(self, bot):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=9876543210)
         
-        # Default config structure
+        # Global settings
         default_global = {
             "api_key": None,
-            "model": "gpt-3.5-turbo", # You can change this to gpt-4o if you want to pay more for better insults
+            "model": "gpt-3.5-turbo",
             "system_prompt": (
                 "You are a highly intelligent but incredibly arrogant and condescending AI assistant. "
                 "You are replying to a Discord user. Keep your response short, witty, and biting. "
@@ -22,6 +22,13 @@ class Condescend(commands.Cog):
             )
         }
         self.config.register_global(**default_global)
+        
+        # Channel-specific history for memory
+        default_channel = {
+            "history": []
+        }
+        self.config.register_channel(**default_channel)
+
         self.client = None
 
     async def _init_openai(self):
@@ -32,7 +39,7 @@ class Condescend(commands.Cog):
 
     @commands.Cog.listener()
     async def on_red_api_tokens_update(self, service_name, api_tokens):
-        """Reloads client if tokens change (optional safety)."""
+        """Reloads client if tokens change."""
         if service_name == "openai":
             await self._init_openai()
 
@@ -63,7 +70,7 @@ class Condescend(commands.Cog):
         Common options: gpt-4o, gpt-4o-mini, gpt-3.5-turbo
         """
         await self.config.model.set(model_name)
-        await ctx.send(f"Model changed to `{model_name}`. Let's hope your wallet can handle it.")
+        await ctx.send(f"Model changed to `{model_name}`.")
 
     @commands.command()
     @commands.admin_or_permissions(manage_messages=True)
@@ -74,16 +81,22 @@ class Condescend(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot or not message.reference or not self.bot.user.mentioned_in(message):
+        # 1. Ignore bots, messages without reference, or messages not mentioning us
+        if message.author.bot:
+            return
+        if not message.reference:
+            return
+        if not self.bot.user.mentioned_in(message):
             return
 
+        # 2. Check if client is initialized
         if not self.client:
             await self._init_openai()
             if not self.client:
                 return 
 
+        # 3. Fetch Context (Original message + Current message)
         try:
-            # Fetch context
             replied_msg = message.reference.resolved
             if not replied_msg:
                 channel = self.bot.get_channel(message.channel.id)
@@ -91,36 +104,35 @@ class Condescend(commands.Cog):
             
             original_author = replied_msg.author.display_name
             original_text = replied_msg.content
+            
             my_author = message.author.display_name
+            # Remove bot mention from user text
             user_text = message.content.replace(f"<@{self.bot.user.id}>", "").replace(f"<@!{self.bot.user.id}>", "").strip()
             
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            return 
+            return # Fail silently if we can't read context
 
+        # 4. Process with LLM
         async with message.channel.typing():
             try:
                 system_prompt = await self.config.system_prompt()
                 model = await self.config.model()
                 
-                # --- MEMORY LOGIC START ---
-                # 1. Get recent history for this channel
+                # --- MEMORY LOGIC ---
                 history = await self.config.channel(message.channel).history()
                 
-                # 2. Define the current interaction
+                # Format current interaction
                 current_interaction_text = (
                     f"User '{original_author}' said: \"{original_text}\"\n"
                     f"User '{my_author}' replied: \"{user_text}\"\n"
                 )
                 
-                # 3. Construct the message payload
                 messages_payload = []
-                
-                # Check for o1 model specific formatting
                 is_o1 = model.startswith("o1")
                 token_arg_name = "max_completion_tokens" if is_o1 else "max_tokens"
 
                 if is_o1:
-                    # For o1, we flatten history into one big prompt because it handles 'roles' poorly
+                    # o1 Handling: Flatten history into one prompt
                     history_text = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in history])
                     full_content = (
                         f"{system_prompt}\n\n"
@@ -130,45 +142,37 @@ class Condescend(commands.Cog):
                     )
                     messages_payload.append({"role": "user", "content": full_content})
                 else:
-                    # Standard GPT-4o Logic
+                    # Standard Handling: System role + History list
                     messages_payload.append({"role": "system", "content": system_prompt})
-                    
-                    # Add history messages
                     for msg in history:
                         messages_payload.append(msg)
-                        
-                    # Add current message
                     messages_payload.append({"role": "user", "content": current_interaction_text})
 
-                # 4. Call API
+                # API Call
                 api_args = {
                     "model": model,
                     "messages": messages_payload,
-                    token_arg_name: 300 
+                    token_arg_name: 300
                 }
 
                 response = await self.client.chat.completions.create(**api_args)
                 reply_text = response.choices[0].message.content
                 
-                # 5. Send Reply
+                # 5. Reply
                 await message.reply(reply_text, mention_author=True)
 
-                # --- SAVE TO MEMORY ---
-                # We save the prompt (user) and the reply (assistant)
+                # 6. Save to Memory
                 new_history_entries = [
                     {"role": "user", "content": current_interaction_text},
                     {"role": "assistant", "content": reply_text}
                 ]
-                
-                # Add to existing history
                 history.extend(new_history_entries)
                 
-                # TRIM HISTORY (Keep only last 6 interactions to save money/tokens)
+                # Trim to last 6 entries (3 turns)
                 if len(history) > 6: 
                     history = history[-6:]
                 
                 await self.config.channel(message.channel).history.set(history)
-                # ----------------------
 
             except Exception as e:
                 await message.reply(f"❌ **Error:** {str(e)}", mention_author=True)
