@@ -58,6 +58,16 @@ class PoopScoop(commands.Cog):
         """
         return f"<t:{int(timestamp)}:{style}>"
 
+    @classmethod
+    def _hour_tag(cls, hour):
+        """Render a UTC hour-of-day as a Discord time tag.
+
+        Anchors the hour to today's date so Discord shows it in each
+        viewer's local timezone (time-only, e.g. "1:00 PM").
+        """
+        dt = cls._utcnow().replace(hour=hour, minute=0, second=0, microsecond=0)
+        return f"<t:{int(dt.timestamp())}:t>"
+
     @staticmethod
     def _bar_chart(labels, values, width=18):
         """Build a monospace horizontal bar chart."""
@@ -247,7 +257,7 @@ class PoopScoop(commands.Cog):
             inline=True,
         )
         embed.add_field(
-            name="Busiest hour", value=f"{busiest_hour:02d}:00 UTC", inline=True
+            name="Busiest hour", value=self._hour_tag(busiest_hour), inline=True
         )
         embed.add_field(
             name="Most active day",
@@ -313,7 +323,7 @@ class PoopScoop(commands.Cog):
                 f"Total poops: **{len(entries)}**\n"
                 f"Last 7 days: **{last7}**\n"
                 f"Busiest day: **{busiest_day}**\n"
-                f"Busiest hour: **{busiest_hour:02d}:00 UTC**"
+                f"Busiest hour: {self._hour_tag(busiest_hour)}"
             ),
             inline=False,
         )
