@@ -8,6 +8,9 @@ from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_timedelta
 
 WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+POOP_COOLDOWN = 300  # seconds between logs per user (anti-spam)
+COUNT_MILESTONES = {10, 50, 100, 250, 500, 1000}
+STREAK_MILESTONES = {7, 30, 100, 365}
 
 
 class PoopScoop(commands.Cog):
@@ -32,17 +35,24 @@ class PoopScoop(commands.Cog):
 
     # -- helpers ---------------------------------------------------------
 
+    @staticmethod
+    def _utcnow():
+        return datetime.datetime.now(datetime.timezone.utc)
+
+    @staticmethod
+    def _to_dt(timestamp):
+        return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc)
+
     def _guild_entries(self, ctx):
         """Poop entries scoped to the current guild (or all in DMs)."""
         if ctx.guild:
             return [p for p in self.poops if p.get("guild_id") == ctx.guild.id]
         return list(self.poops)
 
-    @staticmethod
-    def _fmt(timestamp):
+    @classmethod
+    def _fmt(cls, timestamp):
         """Render a UTC timestamp as a readable string."""
-        dt = datetime.datetime.utcfromtimestamp(timestamp)
-        return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+        return cls._to_dt(timestamp).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     @staticmethod
     def _bar_chart(labels, values, width=18):
@@ -54,11 +64,11 @@ class PoopScoop(commands.Cog):
             lines.append(f"{label:<4}│{'█' * bar_len} {val}")
         return "\n".join(lines)
 
-    @staticmethod
-    def _current_streak(timestamps):
+    @classmethod
+    def _current_streak(cls, timestamps):
         """Count consecutive UTC days with at least one poop, ending now."""
-        days = {datetime.datetime.utcfromtimestamp(ts).date() for ts in timestamps}
-        today = datetime.datetime.utcnow().date()
+        days = {cls._to_dt(ts).date() for ts in timestamps}
+        today = cls._utcnow().date()
         if today in days:
             cursor = today
         elif (today - datetime.timedelta(days=1)) in days:
@@ -73,21 +83,82 @@ class PoopScoop(commands.Cog):
 
     # -- commands --------------------------------------------------------
 
-    @commands.command(name="poop")
-    async def poop(self, ctx):
-        """Log that you pooped."""
-        now = datetime.datetime.utcnow()
+    @commands.group(name="poop", invoke_without_command=True)
+    @commands.cooldown(1, POOP_COOLDOWN, commands.BucketType.user)
+    async def poop(self, ctx, *, note: Optional[str] = None):
+        """Log that you pooped. Optionally add a note."""
+        now = self._utcnow()
         entry = {
             "user_id": ctx.author.id,
             "user_name": str(ctx.author),
             "guild_id": ctx.guild.id if ctx.guild else None,
             "timestamp": now.timestamp(),
         }
+        if note:
+            entry["note"] = note
         self.poops.append(entry)
         self.save_poops()
 
-        await ctx.send(
+        lines = [
             f"💩 Logged: {ctx.author.mention} pooped at {self._fmt(now.timestamp())}."
+        ]
+        if note:
+            lines.append(f"📝 Note: {note}")
+
+        # Milestones (per-guild, computed against this user's history).
+        mine = sorted(
+            (e for e in self._guild_entries(ctx) if e["user_id"] == ctx.author.id),
+            key=lambda e: e["timestamp"],
+        )
+        total = len(mine)
+        if total in COUNT_MILESTONES:
+            lines.append(f"🎉 Milestone: that's **{total}** poops logged!")
+
+        # Streak milestones fire once, on the first poop of the day.
+        today_count = sum(
+            1 for e in mine if self._to_dt(e["timestamp"]).date() == now.date()
+        )
+        if today_count == 1:
+            streak = self._current_streak([e["timestamp"] for e in mine])
+            if streak in STREAK_MILESTONES:
+                lines.append(f"🔥 Streak milestone: **{streak}** days in a row!")
+
+        await ctx.send("\n".join(lines))
+
+    @poop.error
+    async def poop_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            retry = humanize_timedelta(seconds=int(error.retry_after)) or "a moment"
+            await ctx.send(f"🚽 You just went! Wait {retry} before logging again.")
+        else:
+            raise error
+
+    @poop.command(name="undo")
+    async def poop_undo(self, ctx):
+        """Remove your most recent poop log entry."""
+        mine = sorted(
+            (e for e in self._guild_entries(ctx) if e["user_id"] == ctx.author.id),
+            key=lambda e: e["timestamp"],
+        )
+        if not mine:
+            await ctx.send("You have no poops to undo. 🚽")
+            return
+        last = mine[-1]
+        self.poops.remove(last)
+        self.save_poops()
+        await ctx.send(f"↩️ Removed your poop logged at {self._fmt(last['timestamp'])}.")
+
+    @commands.command(name="poopclear")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    async def poopclear(self, ctx):
+        """Clear all poop logs for this server (admin only)."""
+        before = len(self.poops)
+        self.poops = [p for p in self.poops if p.get("guild_id") != ctx.guild.id]
+        removed = before - len(self.poops)
+        self.save_poops()
+        await ctx.send(
+            f"🧹 Cleared {removed} poop log entr{'y' if removed == 1 else 'ies'}."
         )
 
     @commands.command(name="pooplog")
@@ -114,9 +185,12 @@ class PoopScoop(commands.Cog):
         )
         embed = discord.Embed(title=title, color=discord.Color.dark_gold())
         for entry in recent:
+            value = self._fmt(entry["timestamp"])
+            if entry.get("note"):
+                value += f"\n📝 {entry['note']}"
             embed.add_field(
                 name=entry.get("user_name", f"User {entry['user_id']}"),
-                value=self._fmt(entry["timestamp"]),
+                value=value,
                 inline=False,
             )
         await ctx.send(embed=embed)
@@ -145,13 +219,13 @@ class PoopScoop(commands.Cog):
             avg_str = "N/A (need 2+ poops)"
 
         since_last = humanize_timedelta(
-            seconds=int(datetime.datetime.utcnow().timestamp() - last)
+            seconds=int(self._utcnow().timestamp() - last)
         )
         streak = self._current_streak(timestamps)
 
         hour_counts = [0] * 24
         for ts in timestamps:
-            hour_counts[datetime.datetime.utcfromtimestamp(ts).hour] += 1
+            hour_counts[self._to_dt(ts).hour] += 1
         busiest_hour = hour_counts.index(max(hour_counts))
 
         embed = discord.Embed(
@@ -188,16 +262,14 @@ class PoopScoop(commands.Cog):
         counts, names = {}, {}
         weekday_counts = [0] * 7
         hour_counts = [0] * 24
-        week_ago = (
-            datetime.datetime.utcnow() - datetime.timedelta(days=7)
-        ).timestamp()
+        week_ago = (self._utcnow() - datetime.timedelta(days=7)).timestamp()
         last7 = 0
 
         for e in entries:
             uid = e["user_id"]
             counts[uid] = counts.get(uid, 0) + 1
             names[uid] = e.get("user_name", f"User {uid}")
-            dt = datetime.datetime.utcfromtimestamp(e["timestamp"])
+            dt = self._to_dt(e["timestamp"])
             weekday_counts[dt.weekday()] += 1
             hour_counts[dt.hour] += 1
             if e["timestamp"] >= week_ago:

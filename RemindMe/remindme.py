@@ -62,7 +62,7 @@ class RemindMe(commands.Cog):
             await ctx.send("Time must be greater than zero.")
             return
 
-        due = (datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)).timestamp()
+        due = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=seconds)).timestamp()
         self.reminders.append({
             "user_id": ctx.author.id,
             "channel_id": ctx.channel.id,
@@ -76,7 +76,7 @@ class RemindMe(commands.Cog):
     async def reminder_loop(self):
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
-            now = datetime.datetime.utcnow().timestamp()
+            now = datetime.datetime.now(datetime.timezone.utc).timestamp()
             due_reminders = [r for r in self.reminders if r["due"] <= now]
             self.reminders = [r for r in self.reminders if r["due"] > now]
 
