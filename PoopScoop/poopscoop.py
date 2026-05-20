@@ -49,10 +49,14 @@ class PoopScoop(commands.Cog):
             return [p for p in self.poops if p.get("guild_id") == ctx.guild.id]
         return list(self.poops)
 
-    @classmethod
-    def _fmt(cls, timestamp):
-        """Render a UTC timestamp as a readable string."""
-        return cls._to_dt(timestamp).strftime("%Y-%m-%d %H:%M:%S UTC")
+    @staticmethod
+    def _fmt(timestamp, style="f"):
+        """Render a stored UTC timestamp as a Discord timestamp tag.
+
+        Discord displays these in each viewer's own local timezone.
+        Style "f" = date and time, "R" = relative (e.g. "2 hours ago").
+        """
+        return f"<t:{int(timestamp)}:{style}>"
 
     @staticmethod
     def _bar_chart(labels, values, width=18):
