@@ -1,0 +1,9 @@
+{
+    "author": ["Sean Dobens"],
+    "description": "Generate inspirational quote images from InspiroBot (inspirobot.me).",
+    "install_msg": "Thanks for installing InspireMe! Use [p]inspireme to generate a quote.",
+    "min_bot_version": "3.5.0",
+    "name": "InspireMe",
+    "short": "InspiroBot quote generator",
+    "tags": ["fun", "quotes", "inspiration"]
+}
