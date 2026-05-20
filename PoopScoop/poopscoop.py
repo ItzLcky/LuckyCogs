@@ -224,9 +224,13 @@ class PoopScoop(commands.Cog):
         streak = self._current_streak(timestamps)
 
         hour_counts = [0] * 24
+        day_counts = {}
         for ts in timestamps:
-            hour_counts[self._to_dt(ts).hour] += 1
+            dt = self._to_dt(ts)
+            hour_counts[dt.hour] += 1
+            day_counts[dt.date()] = day_counts.get(dt.date(), 0) + 1
         busiest_hour = hour_counts.index(max(hour_counts))
+        best_day, best_day_count = max(day_counts.items(), key=lambda x: x[1])
 
         embed = discord.Embed(
             title=f"💩 Poop Profile — {member.display_name}",
@@ -240,6 +244,14 @@ class PoopScoop(commands.Cog):
         )
         embed.add_field(
             name="Busiest hour", value=f"{busiest_hour:02d}:00 UTC", inline=True
+        )
+        embed.add_field(
+            name="Most active day",
+            value=(
+                f"{best_day:%b %d, %Y} — {best_day_count} "
+                f"poop{'s' if best_day_count != 1 else ''}"
+            ),
+            inline=False,
         )
         embed.add_field(name="First poop", value=self._fmt(first), inline=False)
         embed.add_field(
