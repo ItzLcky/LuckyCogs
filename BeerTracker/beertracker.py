@@ -3,6 +3,7 @@ import json
 import os
 import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from redbot.core import commands
 from redbot.core.bot import Red
 from redbot.core.utils.chat_formatting import humanize_timedelta
@@ -19,8 +20,11 @@ class BeerTracker(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
         self.file_path = os.path.join(os.path.dirname(__file__), "beers.json")
+        self.settings_path = os.path.join(os.path.dirname(__file__), "settings.json")
         self.beers = []
+        self.settings = {}
         self.load_beers()
+        self.load_settings()
 
     def load_beers(self):
         if os.path.exists(self.file_path):
@@ -32,6 +36,34 @@ class BeerTracker(commands.Cog):
     def save_beers(self):
         with open(self.file_path, "w") as f:
             json.dump(self.beers, f)
+
+    def load_settings(self):
+        if os.path.exists(self.settings_path):
+            with open(self.settings_path, "r") as f:
+                self.settings = json.load(f)
+        else:
+            self.settings = {}
+
+    def save_settings(self):
+        with open(self.settings_path, "w") as f:
+            json.dump(self.settings, f)
+
+    def _guild_tz(self, guild) -> datetime.tzinfo:
+        """Return the configured timezone for a guild, or UTC if unset."""
+        if guild is None:
+            return datetime.timezone.utc
+        name = self.settings.get("guild_tz", {}).get(str(guild.id))
+        if not name:
+            return datetime.timezone.utc
+        try:
+            return ZoneInfo(name)
+        except ZoneInfoNotFoundError:
+            return datetime.timezone.utc
+
+    def _guild_tz_name(self, guild) -> str:
+        """Display name for the guild's configured timezone."""
+        tz = self._guild_tz(guild)
+        return getattr(tz, "key", "UTC")
 
     # -- helpers ---------------------------------------------------------
 
@@ -146,6 +178,51 @@ class BeerTracker(commands.Cog):
             await ctx.send(f"🍺 Slow down! Wait {retry} before logging another beer.")
         else:
             raise error
+
+    @beer.command(name="timezone", aliases=["tz"])
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
+    async def beer_timezone(self, ctx, *, name: Optional[str] = None):
+        """Set the timezone used to bucket [p]beerstats weekday/hour stats.
+
+        Examples:
+          [p]beer timezone               → show current setting
+          [p]beer timezone America/New_York
+          [p]beer timezone Europe/London
+          [p]beer timezone UTC           → reset to default
+        """
+        guild_tz = self.settings.setdefault("guild_tz", {})
+        gid = str(ctx.guild.id)
+
+        if name is None:
+            current = guild_tz.get(gid, "UTC (default)")
+            await ctx.send(
+                f"📅 Beerstats timezone for this server: **{current}**\n"
+                f"Use `{ctx.clean_prefix}beer timezone <IANA name>` to change "
+                f"(e.g. `America/New_York`, `Europe/London`, `Asia/Tokyo`)."
+            )
+            return
+
+        name = name.strip()
+        if name.lower() in {"unset", "clear", "default", "utc"}:
+            guild_tz.pop(gid, None)
+            self.save_settings()
+            await ctx.send("✅ Beerstats timezone reset to UTC.")
+            return
+
+        try:
+            ZoneInfo(name)
+        except ZoneInfoNotFoundError:
+            await ctx.send(
+                f"❌ Unknown timezone `{name}`. Use an IANA name like "
+                f"`America/New_York` or `Europe/London`. See "
+                f"<https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>."
+            )
+            return
+
+        guild_tz[gid] = name
+        self.save_settings()
+        await ctx.send(f"✅ Beerstats timezone set to **{name}**.")
 
     @beer.command(name="undo")
     async def beer_undo(self, ctx):
@@ -285,6 +362,11 @@ class BeerTracker(commands.Cog):
             await ctx.send("No beers logged yet. 🍺")
             return
 
+        # Bucket weekday/hour in the guild's configured timezone so a beer
+        # logged at 8 PM Saturday local doesn't roll into Sunday on UTC.
+        tz = self._guild_tz(ctx.guild)
+        tz_name = self._guild_tz_name(ctx.guild)
+
         counts, names = {}, {}
         weekday_counts = [0] * 7
         hour_counts = [0] * 24
@@ -295,7 +377,7 @@ class BeerTracker(commands.Cog):
             uid = e["user_id"]
             counts[uid] = counts.get(uid, 0) + 1
             names[uid] = e.get("user_name", f"User {uid}")
-            dt = self._to_dt(e["timestamp"])
+            dt = self._to_dt(e["timestamp"]).astimezone(tz)
             weekday_counts[dt.weekday()] += 1
             hour_counts[dt.hour] += 1
             if e["timestamp"] >= week_ago:
@@ -304,6 +386,12 @@ class BeerTracker(commands.Cog):
         ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)
         busiest_day = WEEKDAY_NAMES[weekday_counts.index(max(weekday_counts))]
         busiest_hour = hour_counts.index(max(hour_counts))
+        # Plain-text hour in the guild's TZ so it matches the chart's bucketing
+        # (Discord's <t:...:t> tags would re-localize per viewer and drift from
+        # the chart).
+        hour_12 = (busiest_hour % 12) or 12
+        ampm = "AM" if busiest_hour < 12 else "PM"
+        busiest_hour_str = f"{hour_12} {ampm}"
 
         embed = discord.Embed(
             title="🏆 Beer Leaderboard", color=discord.Color.gold()
@@ -323,10 +411,11 @@ class BeerTracker(commands.Cog):
                 f"Total beers: **{len(entries)}**\n"
                 f"Last 7 days: **{last7}**\n"
                 f"Busiest day: **{busiest_day}**\n"
-                f"Busiest hour: {self._hour_tag(busiest_hour)}"
+                f"Busiest hour: **{busiest_hour_str}**"
             ),
             inline=False,
         )
+        embed.set_footer(text=f"Weekday/hour stats in {tz_name}")
         await ctx.send(embed=embed)
 
 
