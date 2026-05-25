@@ -224,6 +224,49 @@ class BeerTracker(commands.Cog):
         self.save_settings()
         await ctx.send(f"✅ Beerstats timezone set to **{name}**.")
 
+    @beer.command(name="rules")
+    async def beer_rules(self, ctx):
+        """Show what counts as a drink for tracking purposes."""
+        embed = discord.Embed(
+            title="🍺 Beer Tracker — Rules",
+            description=(
+                "**What counts as a drink?**\n"
+                "Any beverage with an alcohol content counts as a drink, "
+                "regardless of type or serving size."
+            ),
+            color=discord.Color.gold(),
+        )
+        embed.add_field(
+            name="✅ Counts",
+            value=(
+                "• Beer, cider, seltzer\n"
+                "• Wine, champagne, sake\n"
+                "• Spirits, shots, cocktails, mixed drinks\n"
+                "• Any other alcoholic beverage"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="❌ Doesn't count",
+            value=(
+                "• Non-alcoholic beer, mocktails, N/A wine\n"
+                "• Soda, juice, coffee, tea, water"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="📋 How to log",
+            value=(
+                f"• `{ctx.clean_prefix}beer` — log a drink\n"
+                f"• `{ctx.clean_prefix}beer <note>` — log with a description "
+                f"(e.g. `{ctx.clean_prefix}beer old fashioned`)\n"
+                f"• One drink = one log. Log each drink separately.\n"
+                f"• `{ctx.clean_prefix}beer undo` — remove your last log"
+            ),
+            inline=False,
+        )
+        await ctx.send(embed=embed)
+
     @beer.command(name="undo")
     async def beer_undo(self, ctx):
         """Remove your most recent beer log entry."""
