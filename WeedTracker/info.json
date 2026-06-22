@@ -1,0 +1,9 @@
+{
+    "author": ["ItzLcky"],
+    "description": "Track cannabis sessions with method of delivery and amount, per-user profiles, guild leaderboards, streaks, and activity analytics.",
+    "install_msg": "Thanks for installing WeedTracker! Use [p]weed <method> <amount> to log a session, [p]myweed for your profile, [p]weedstats for the leaderboard.",
+    "min_bot_version": "3.5.0",
+    "name": "WeedTracker",
+    "short": "Cannabis session logging and analytics",
+    "tags": ["fun", "tracking", "stats", "analytics"]
+}
